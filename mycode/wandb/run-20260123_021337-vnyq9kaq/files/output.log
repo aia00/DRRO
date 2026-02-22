@@ -1,0 +1,89 @@
+wandb: Detected [openai] in use.
+wandb: Use W&B Weave for improved LLM call tracing. Install Weave with `pip install weave` then add `import weave` to the top of your script.
+wandb: For more information, check out the docs at: https://weave-docs.wandb.ai/
+Checkpoint tracker file does not exist: /home/ykwang/mtdata2/DRRO/grpo/latest_checkpointed_iteration.txt
+Training from scratch
+Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.actor_rollout_compute_log_prob()[39m (pid=288422, ip=172.22.3.232, actor_id=8c841304ab9e0130219f143101000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7faf38da0f10>)
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/single_controller/ray/base.py", line 844, in func
+    return getattr(self.worker_dict[key], name)(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/single_controller/base/decorator.py", line 462, in inner
+    return func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/transferqueue_utils.py", line 314, in dummy_inner
+    output = func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/profile.py", line 274, in wrapper
+    return func(self_instance, *args, **kwargs_inner)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/fsdp_workers.py", line 1045, in compute_log_prob
+    outputs = self.actor.compute_log_prob(data=data, calculate_entropy=calculate_entropy)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/performance.py", line 105, in f
+    return self.log(decorated_function, *args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/performance.py", line 118, in log
+    output = func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/actor/dp_actor.py", line 473, in compute_log_prob
+    outputs = self._forward_micro_batch(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/actor/dp_actor.py", line 166, in _forward_micro_batch
+    input_ids_rmpad, indices, cu_seqlens, *_ = unpad_input(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/attention_utils.py", line 96, in unpad_input
+    *_, func = _get_attention_functions()
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/attention_utils.py", line 30, in _get_attention_functions
+    from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
+ModuleNotFoundError: No module named 'flash_attn'
+Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.actor_rollout_compute_log_prob()[39m (pid=288421, ip=172.22.3.232, actor_id=0624c68f102ec87ecf0d8ecc01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7fb0f40c4e50>)
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/single_controller/ray/base.py", line 844, in func
+    return getattr(self.worker_dict[key], name)(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/single_controller/base/decorator.py", line 462, in inner
+    return func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/transferqueue_utils.py", line 314, in dummy_inner
+    output = func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/profile.py", line 274, in wrapper
+    return func(self_instance, *args, **kwargs_inner)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/fsdp_workers.py", line 1045, in compute_log_prob
+    outputs = self.actor.compute_log_prob(data=data, calculate_entropy=calculate_entropy)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/performance.py", line 105, in f
+    return self.log(decorated_function, *args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/performance.py", line 118, in log
+    output = func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/actor/dp_actor.py", line 473, in compute_log_prob
+    outputs = self._forward_micro_batch(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/actor/dp_actor.py", line 166, in _forward_micro_batch
+    input_ids_rmpad, indices, cu_seqlens, *_ = unpad_input(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/attention_utils.py", line 96, in unpad_input
+    *_, func = _get_attention_functions()
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/attention_utils.py", line 30, in _get_attention_functions
+    from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
+ModuleNotFoundError: No module named 'flash_attn'
+Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::WorkerDict.actor_rollout_compute_log_prob()[39m (pid=288419, ip=172.22.3.232, actor_id=e5f2c3208fa729ff5a587d0d01000000, repr=<verl.single_controller.ray.base.WorkerDict object at 0x7fb6b2d18e20>)
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 458, in result
+    return self.__get_result()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/single_controller/ray/base.py", line 844, in func
+    return getattr(self.worker_dict[key], name)(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/single_controller/base/decorator.py", line 462, in inner
+    return func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/transferqueue_utils.py", line 314, in dummy_inner
+    output = func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/profile.py", line 274, in wrapper
+    return func(self_instance, *args, **kwargs_inner)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/fsdp_workers.py", line 1045, in compute_log_prob
+    outputs = self.actor.compute_log_prob(data=data, calculate_entropy=calculate_entropy)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/performance.py", line 105, in f
+    return self.log(decorated_function, *args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/profiler/performance.py", line 118, in log
+    output = func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/actor/dp_actor.py", line 473, in compute_log_prob
+    outputs = self._forward_micro_batch(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/actor/dp_actor.py", line 166, in _forward_micro_batch
+    input_ids_rmpad, indices, cu_seqlens, *_ = unpad_input(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/attention_utils.py", line 96, in unpad_input
+    *_, func = _get_attention_functions()
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/attention_utils.py", line 30, in _get_attention_functions
+    from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
+ModuleNotFoundError: No module named 'flash_attn'

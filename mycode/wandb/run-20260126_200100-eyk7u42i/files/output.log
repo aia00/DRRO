@@ -1,0 +1,66 @@
+wandb: Detected [openai] in use.
+wandb: Use W&B Weave for improved LLM call tracing. Install Weave with `pip install weave` then add `import weave` to the top of your script.
+wandb: For more information, check out the docs at: https://weave-docs.wandb.ai/
+Checkpoint tracker file does not exist: /home/ykwang/mtdata2/DRRO/grpo/latest_checkpointed_iteration.txt
+Training from scratch
+Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::AgentLoopWorker.generate_sequences()[39m (pid=2684768, ip=172.22.3.232, actor_id=7a31cf53ce17d790ad57864e01000000, repr=<verl.experimental.agent_loop.agent_loop.AgentLoopWorker object at 0x7fab0d2365c0>)
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/transferqueue_utils.py", line 319, in dummy_async_inner
+    output = await func(*args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/experimental/agent_loop/agent_loop.py", line 478, in generate_sequences
+    outputs = await asyncio.gather(*tasks)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/experimental/agent_loop/agent_loop.py", line 515, in _run_agent_loop
+    output: AgentLoopOutput = await agent_loop.run(sampling_params, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/experimental/agent_loop/single_turn_agent_loop.py", line 59, in run
+    output = await self.server_manager.generate(
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/utils/rollout_trace.py", line 191, in async_wrapper
+    return await func(self, *args, **kwargs)
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/experimental/agent_loop/agent_loop.py", line 115, in generate
+    output = await server.generate.remote(
+ray.exceptions.RayTaskError(EngineDeadError): [36mray::vLLMHttpServer.generate()[39m (pid=2682943, ip=172.22.3.232, actor_id=c43107ad6db3da8fa7d8778101000000, repr=<verl.workers.rollout.vllm_rollout.vllm_async_server.vLLMHttpServer object at 0x7f9e24d8ded0>)
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/rollout/vllm_rollout/vllm_async_server.py", line 530, in generate
+    async for output in generator:
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/async_llm.py", line 436, in generate
+    out = q.get_nowait() or await q.get()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/output_processor.py", line 70, in get
+    raise output
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/rollout/vllm_rollout/vllm_async_server.py", line 530, in generate
+    async for output in generator:
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/async_llm.py", line 436, in generate
+    out = q.get_nowait() or await q.get()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/output_processor.py", line 70, in get
+    raise output
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/rollout/vllm_rollout/vllm_async_server.py", line 530, in generate
+    async for output in generator:
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/async_llm.py", line 436, in generate
+    out = q.get_nowait() or await q.get()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/output_processor.py", line 70, in get
+    raise output
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/rollout/vllm_rollout/vllm_async_server.py", line 530, in generate
+    async for output in generator:
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/async_llm.py", line 436, in generate
+    out = q.get_nowait() or await q.get()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/output_processor.py", line 70, in get
+    raise output
+  File "/home/ykwang/projects/LLM_Archive/DRRO/verl/verl/workers/rollout/vllm_rollout/vllm_async_server.py", line 530, in generate
+    async for output in generator:
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/async_llm.py", line 436, in generate
+    out = q.get_nowait() or await q.get()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/output_processor.py", line 70, in get
+    raise output
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/async_llm.py", line 490, in output_handler
+    outputs = await engine_core.get_output_async()
+  File "/home/ykwang/.conda/envs/verl_vllm/lib/python3.10/site-packages/vllm/v1/engine/core_client.py", line 895, in get_output_async
+    raise self._format_exception(outputs) from None
+vllm.v1.engine.exceptions.EngineDeadError: EngineCore encountered an issue. See stack trace (above) for the root cause.

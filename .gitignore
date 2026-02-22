@@ -1,0 +1,18 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
+
+# Notebook/cache
+.ipynb_checkpoints/
+
+# Local env
+.env
+.venv/
+venv/
+.python-version
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp

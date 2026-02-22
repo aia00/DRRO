@@ -1,0 +1,13 @@
+{"time":"2026-01-29T10:44:05.126305503-05:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-29T10:44:05.445603269-05:00","level":"INFO","msg":"stream: created new stream","id":"j50iaydq"}
+{"time":"2026-01-29T10:44:05.445739193-05:00","level":"INFO","msg":"handler: started","stream_id":"j50iaydq"}
+{"time":"2026-01-29T10:44:05.445930548-05:00","level":"INFO","msg":"stream: started","id":"j50iaydq"}
+{"time":"2026-01-29T10:44:05.445948359-05:00","level":"INFO","msg":"writer: started","stream_id":"j50iaydq"}
+{"time":"2026-01-29T10:44:05.446013581-05:00","level":"INFO","msg":"sender: started","stream_id":"j50iaydq"}
+{"time":"2026-01-29T14:33:20.800617499-05:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yikai_w/drro-grpo/j50iaydq/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2026-01-29T20:25:54.646494481-05:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-29T20:25:54.881689734-05:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2026-01-29T20:25:54.890455243-05:00","level":"INFO","msg":"stream: closing","id":"j50iaydq"}
+{"time":"2026-01-29T20:25:54.890487984-05:00","level":"INFO","msg":"handler: closed","stream_id":"j50iaydq"}
+{"time":"2026-01-29T20:25:54.890604687-05:00","level":"INFO","msg":"sender: closed","stream_id":"j50iaydq"}
+{"time":"2026-01-29T20:25:54.890651509-05:00","level":"INFO","msg":"stream: closed","id":"j50iaydq"}

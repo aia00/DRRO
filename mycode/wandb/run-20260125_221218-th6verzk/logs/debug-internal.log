@@ -1,0 +1,12 @@
+{"time":"2026-01-25T22:12:18.756659182-05:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-25T22:12:19.046428737-05:00","level":"INFO","msg":"stream: created new stream","id":"th6verzk"}
+{"time":"2026-01-25T22:12:19.046564252-05:00","level":"INFO","msg":"handler: started","stream_id":"th6verzk"}
+{"time":"2026-01-25T22:12:19.046716596-05:00","level":"INFO","msg":"stream: started","id":"th6verzk"}
+{"time":"2026-01-25T22:12:19.046748517-05:00","level":"INFO","msg":"writer: started","stream_id":"th6verzk"}
+{"time":"2026-01-25T22:12:19.046776338-05:00","level":"INFO","msg":"sender: started","stream_id":"th6verzk"}
+{"time":"2026-01-25T22:26:22.558836867-05:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-25T22:26:22.70969306-05:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2026-01-25T22:26:22.714576259-05:00","level":"INFO","msg":"stream: closing","id":"th6verzk"}
+{"time":"2026-01-25T22:26:22.7146014-05:00","level":"INFO","msg":"handler: closed","stream_id":"th6verzk"}
+{"time":"2026-01-25T22:26:22.714769674-05:00","level":"INFO","msg":"sender: closed","stream_id":"th6verzk"}
+{"time":"2026-01-25T22:26:22.714800675-05:00","level":"INFO","msg":"stream: closed","id":"th6verzk"}

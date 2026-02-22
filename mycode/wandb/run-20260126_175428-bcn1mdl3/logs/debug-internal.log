@@ -1,0 +1,6 @@
+{"time":"2026-01-26T17:54:28.734284394-05:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-26T17:54:29.002474535-05:00","level":"INFO","msg":"stream: created new stream","id":"bcn1mdl3"}
+{"time":"2026-01-26T17:54:29.002580288-05:00","level":"INFO","msg":"handler: started","stream_id":"bcn1mdl3"}
+{"time":"2026-01-26T17:54:29.002746443-05:00","level":"INFO","msg":"stream: started","id":"bcn1mdl3"}
+{"time":"2026-01-26T17:54:29.002777764-05:00","level":"INFO","msg":"writer: started","stream_id":"bcn1mdl3"}
+{"time":"2026-01-26T17:54:29.002798814-05:00","level":"INFO","msg":"sender: started","stream_id":"bcn1mdl3"}
