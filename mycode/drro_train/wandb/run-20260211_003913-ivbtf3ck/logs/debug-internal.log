@@ -1,8 +1,0 @@
-{"time":"2026-02-11T00:39:13.704075635-05:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
-{"time":"2026-02-11T00:39:13.99102819-05:00","level":"INFO","msg":"stream: created new stream","id":"ivbtf3ck"}
-{"time":"2026-02-11T00:39:13.991166194-05:00","level":"INFO","msg":"handler: started","stream_id":"ivbtf3ck"}
-{"time":"2026-02-11T00:39:13.991327048-05:00","level":"INFO","msg":"stream: started","id":"ivbtf3ck"}
-{"time":"2026-02-11T00:39:13.991353919-05:00","level":"INFO","msg":"writer: started","stream_id":"ivbtf3ck"}
-{"time":"2026-02-11T00:39:13.99136877-05:00","level":"INFO","msg":"sender: started","stream_id":"ivbtf3ck"}
-{"time":"2026-02-11T17:29:29.587188213-05:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yikai_w/drro-grpo/ivbtf3ck/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
-{"time":"2026-02-11T18:20:08.703817218-05:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yikai_w/drro-grpo/ivbtf3ck/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

@@ -16,3 +16,17 @@ venv/
 .DS_Store
 Thumbs.db
 *.swp
+
+# DRRO training artifacts
+mycode/drro_train/wandb/
+mycode/wandb/
+wandb/
+runs/
+outputs/
+checkpoints/
+
+# Logs and local runtime files
+*.log
+*.wandb
+latest-run
+ray_tmp/

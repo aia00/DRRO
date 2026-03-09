@@ -6,7 +6,7 @@ import os
 import sys
 from typing import Optional
 
-DEFAULT_VERL_ROOT = "/home/ykwang/projects/LLM_Archive/multi_rewards/verl"
+DEFAULT_VERL_ROOT = "/home/ykwang/projects/DRRO"
 
 
 def ensure_verl_on_path() -> Optional[str]:

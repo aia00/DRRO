@@ -1,6 +1,0 @@
-{"time":"2026-02-12T01:19:51.569554575-05:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
-{"time":"2026-02-12T01:19:51.857078386-05:00","level":"INFO","msg":"stream: created new stream","id":"pheki3ox"}
-{"time":"2026-02-12T01:19:51.85719454-05:00","level":"INFO","msg":"handler: started","stream_id":"pheki3ox"}
-{"time":"2026-02-12T01:19:51.857345294-05:00","level":"INFO","msg":"stream: started","id":"pheki3ox"}
-{"time":"2026-02-12T01:19:51.857376075-05:00","level":"INFO","msg":"writer: started","stream_id":"pheki3ox"}
-{"time":"2026-02-12T01:19:51.857394446-05:00","level":"INFO","msg":"sender: started","stream_id":"pheki3ox"}

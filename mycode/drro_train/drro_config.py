@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         help="Validation batch size (0 = use --batch_size_prompts).",
     )
     parser.add_argument("--batch_size_prompts", type=int, default=8)
-    parser.add_argument("--num_generations", type=int, default=8)
+    parser.add_argument("--num_generations", type=int, default=16)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--max_prompt_tokens", type=int, default=512)
     parser.add_argument("--temperature", type=float, default=1.0)

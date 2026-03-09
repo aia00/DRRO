@@ -36,7 +36,7 @@ VLLM_TP="${VLLM_TP:-0}"
 VLLM_GPU_MEM="${VLLM_GPU_MEM:-0.5}"
 VLLM_MAX_BATCHED_TOKENS="${VLLM_MAX_BATCHED_TOKENS:-8192}"
 VLLM_MAX_SEQS="${VLLM_MAX_SEQS:-1024}"
-NUM_GENERATIONS="${NUM_GENERATIONS:-8}"
+NUM_GENERATIONS="${NUM_GENERATIONS:-16}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"
 POLICY_MODEL="${POLICY_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 PROXY_RM="${PROXY_RM:-OpenAssistant/reward-model-deberta-v3-base}"
@@ -46,8 +46,68 @@ if [[ -z "${DELTA2}" ]]; then
   DELTA2="$(awk "BEGIN{printf \"%.6f\", ${NUM_GENERATIONS}*2.5}")"
 fi
 
-RUN1_DIR="${OUT_BASE}/grpo"
-RUN2_DIR="${OUT_BASE}/drro_delta${DELTA2}"
+EXTRA_ARGS=()
+if [[ -n "${EXTRA_TRAIN_ARGS:-}" ]]; then
+  read -r -a EXTRA_ARGS <<< "${EXTRA_TRAIN_ARGS}"
+fi
+
+extract_cli_value() {
+  local key="$1"
+  shift
+  local args=("$@")
+  local idx token
+  for ((idx = 0; idx < ${#args[@]}; idx++)); do
+    token="${args[$idx]}"
+    if [[ "${token}" == "${key}" ]]; then
+      if ((idx + 1 < ${#args[@]})); then
+        printf "%s" "${args[$((idx + 1))]}"
+        return 0
+      fi
+    elif [[ "${token}" == "${key}="* ]]; then
+      printf "%s" "${token#*=}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+format_num() {
+  local value="$1"
+  awk "BEGIN{printf \"%g\", ${value}}"
+}
+
+DELTA_ALPHA_VAL="${DELTA_ALPHA:-}"
+if [[ -z "${DELTA_ALPHA_VAL}" ]]; then
+  DELTA_ALPHA_VAL="$(extract_cli_value --delta_alpha "${EXTRA_ARGS[@]}" || true)"
+fi
+if [[ -z "${DELTA_ALPHA_VAL}" ]]; then
+  DELTA_ALPHA_VAL="0.0"
+fi
+
+SOFTMAX_TAU_VAL="${DELTA_SOFTMAX_TAU:-}"
+if [[ -z "${SOFTMAX_TAU_VAL}" ]]; then
+  SOFTMAX_TAU_VAL="$(extract_cli_value --delta_softmax_tau "${EXTRA_ARGS[@]}" || true)"
+fi
+if [[ -z "${SOFTMAX_TAU_VAL}" ]]; then
+  SOFTMAX_TAU_VAL="2.0"
+fi
+
+ALPHA_TAG="$(format_num "${DELTA_ALPHA_VAL}")"
+TAU_TAG="$(format_num "${SOFTMAX_TAU_VAL}")"
+
+build_run_name() {
+  local delta_value="$1"
+  local delta_tag
+  delta_tag="$(format_num "${delta_value}")"
+  if awk "BEGIN{exit !(${DELTA_ALPHA_VAL} > 0)}"; then
+    printf "drro_dynamic_a%s_tau%s_rollout%s" "${ALPHA_TAG}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+  else
+    printf "drro_fix_delta%s_tau%s_rollout%s" "${delta_tag}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+  fi
+}
+
+RUN1_DIR="${RUN1_DIR:-${OUT_BASE}/$(build_run_name "${DELTA1}")}"
+RUN2_DIR="${RUN2_DIR:-${OUT_BASE}/$(build_run_name "${DELTA2}")}"
 
 TRAIN_ARGS=(
   --num_gpus "${NUM_GPUS}"
@@ -94,11 +154,6 @@ if [[ "${ROLLOUT_BACKEND}" == "vllm" ]]; then
   if [[ "${VLLM_ENFORCE_EAGER:-0}" == "1" ]]; then
     TRAIN_ARGS+=(--vllm_enforce_eager)
   fi
-fi
-
-EXTRA_ARGS=()
-if [[ -n "${EXTRA_TRAIN_ARGS:-}" ]]; then
-  read -r -a EXTRA_ARGS <<< "${EXTRA_TRAIN_ARGS}"
 fi
 
 WANDB_ARGS=()
