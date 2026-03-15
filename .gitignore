@@ -25,6 +25,10 @@ runs/
 outputs/
 checkpoints/
 
+# Local path config (keep private)
+mycode/project_paths.env
+mycode/*.local.env
+
 # Logs and local runtime files
 *.log
 *.wandb

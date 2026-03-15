@@ -3,14 +3,24 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_NAME="${ENV_NAME:-verl_vllm}"
+MYCODE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PATH_CFG="${DRRO_PATH_CONFIG:-${MYCODE_ROOT}/project_paths.env}"
+if [[ -f "${PATH_CFG}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PATH_CFG}"
+fi
 
 if command -v conda >/dev/null 2>&1; then
   source "$(conda info --base)/etc/profile.d/conda.sh"
   conda activate "${ENV_NAME}"
 fi
 
-OUTPUT_DIR="${OUTPUT_DIR:-/home/ykwang/mtdata2/DRRO/proxy_pairs}"
-DATASET_PATH="${DATASET_PATH:-}"  # e.g. /home/ykwang/common_dataset_model/dataset/Anthropic_hh-rlhf
+OUTPUT_DIR="${OUTPUT_DIR:-${DRRO_PROXY_PAIRS_DIR:-}}"
+if [[ -z "${OUTPUT_DIR}" ]]; then
+  echo "Set DRRO_PROXY_PAIRS_DIR in project_paths.env or export OUTPUT_DIR." >&2
+  exit 1
+fi
+DATASET_PATH="${DATASET_PATH:-${DRRO_LOCAL_DATASET_DIR:-}}"
 NUM_PAIRS="${NUM_PAIRS:-50000}"
 NUM_RESPONSES="${NUM_RESPONSES:-4}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"

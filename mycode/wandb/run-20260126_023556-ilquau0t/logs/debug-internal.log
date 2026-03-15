@@ -1,9 +1,0 @@
-{"time":"2026-01-26T02:35:57.202131502-05:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
-{"time":"2026-01-26T02:35:57.647139875-05:00","level":"INFO","msg":"stream: created new stream","id":"ilquau0t"}
-{"time":"2026-01-26T02:35:57.647292319-05:00","level":"INFO","msg":"handler: started","stream_id":"ilquau0t"}
-{"time":"2026-01-26T02:35:57.647566897-05:00","level":"INFO","msg":"stream: started","id":"ilquau0t"}
-{"time":"2026-01-26T02:35:57.647603988-05:00","level":"INFO","msg":"writer: started","stream_id":"ilquau0t"}
-{"time":"2026-01-26T02:35:57.647646799-05:00","level":"INFO","msg":"sender: started","stream_id":"ilquau0t"}
-{"time":"2026-01-26T09:51:09.601125285-05:00","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/yikai_w/drro-grpo/ilquau0t/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
-{"time":"2026-01-26T14:10:28.130053353-05:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yikai_w/drro-grpo/ilquau0t/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
-{"time":"2026-01-26T15:11:52.120805375-05:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yikai_w/drro-grpo/ilquau0t/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

@@ -1,0 +1,13 @@
+{
+  "objective_name": "helpfulness",
+  "components": [
+    {
+      "name": "helpfulness",
+      "model": "OpenAssistant/reward-model-deberta-v3-base"
+    },
+    {
+      "name": "harmlessness",
+      "model": "sileod/deberta-v3-large-tasksource-rlhf-reward-model"
+    }
+  ]
+}

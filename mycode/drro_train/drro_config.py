@@ -13,7 +13,9 @@ import torch
 from omegaconf import OmegaConf, open_dict
 
 from drro_data import get_custom_chat_template
-from drro_paths import ensure_verl_on_path
+from drro_paths import ensure_verl_on_path, get_path_config
+
+PATH_CFG = get_path_config()
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--local_dataset_dir",
         type=str,
-        default="/home/ykwang/common_dataset_model/dataset/Anthropic_hh-rlhf",
+        default=PATH_CFG.get("DRRO_LOCAL_DATASET_DIR", ""),
     )
     parser.add_argument(
         "--policy_model",
@@ -39,7 +41,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="sileod/deberta-v3-large-tasksource-rlhf-reward-model",
     )
-    parser.add_argument("--output_dir", type=str, default="runs/exp1")
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "exp1"),
+    )
     parser.add_argument("--num_steps", type=int, default=300)
     parser.add_argument("--eval_every", type=int, default=10)
     parser.add_argument("--save_every", type=int, default=20)
@@ -438,7 +444,17 @@ def build_config(
         if cfg.ray_kwargs.get("ray_init") is None:
             cfg.ray_kwargs["ray_init"] = {}
     with open_dict(cfg.ray_kwargs.ray_init):
-        ray_temp_dir = os.environ.get("RAY_TMPDIR") or os.environ.get("RAY_TEMP_DIR") or "/home/ykwang/mtdata2/ray_tmp"
+        default_ray_tmp = PATH_CFG.get("DRRO_RAY_TMPDIR", "")
+        ray_temp_dir = (
+            os.environ.get("RAY_TMPDIR")
+            or os.environ.get("RAY_TEMP_DIR")
+            or default_ray_tmp
+        )
+        if not ray_temp_dir:
+            raise ValueError(
+                "Ray temp dir is not configured. Set DRRO_RAY_TMPDIR in project_paths.env "
+                "or export RAY_TMPDIR/RAY_TEMP_DIR."
+            )
         os.makedirs(ray_temp_dir, exist_ok=True)
         runtime_env = cfg.ray_kwargs.ray_init.get("runtime_env") or {}
         env_vars = runtime_env.get("env_vars") or {}

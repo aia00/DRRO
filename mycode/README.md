@@ -6,6 +6,10 @@ Code layout (consolidated):
 
 - `drro_train/` canonical DRRO training implementation.
 - `proxy_rm/` proxy RM data generation/training/eval pipeline.
+- `baselines/` additional comparison baselines:
+  - `baselines/ensemble/` ensemble PPO (`mean`, `wco`, `uwo`) + proxy-ensemble utilities
+  - `baselines/constraint/` constraint PPO (`mu`, `xi`) + proxy-point estimation
+  - `baselines/common/` shared baseline trainer/config utilities
 
 ## Quickstart
 
@@ -14,6 +18,8 @@ Install dependencies:
 ```
 pip install -r requirements.txt
 ```
+
+Configure paths once in `project_paths.env` (output root, ray tmp, local dataset, proxy pair dir).
 
 Run GRPO (delta=0) and DRRO-GRPO (delta>0) with vLLM rollout (Ray is launched internally):
 
@@ -54,18 +60,53 @@ Best-of-k evaluation (BoN) on validation prompts:
 python drro_train/eval_best_of_k.py --run_dir runs/grpo --n_list 1,2,4,8,16
 ```
 
+## Baseline experiments
+
+Train ensemble baseline (PPO + LoRA):
+
+```bash
+bash baselines/ensemble/run_ensemble_lora.sh
+```
+
+Train constraint baselines (CMDP style):
+
+```bash
+COMPONENT_CONFIG_JSON=/path/to/component_config.json \
+THETA_JSON=/path/to/theta.json \
+bash baselines/constraint/run_constraint_mu_lora.sh
+
+COMPONENT_CONFIG_JSON=/path/to/component_config.json \
+THETA_JSON=/path/to/theta.json \
+bash baselines/constraint/run_constraint_xi_lora.sh
+```
+
+Train/export a 5-member proxy RM ensemble + manifest:
+
+```bash
+bash baselines/ensemble/run_train_proxy_ensemble.sh
+```
+
+Estimate proxy-point thresholds (gold-peak rule):
+
+```bash
+python baselines/constraint/estimate_proxy_points.py \
+  --inputs /path/to/eval_log.csv \
+  --output_theta_json /path/to/theta.json
+```
+
 ## Dataset notes
 
-By default, the script targets `HuggingFaceH4/hh-rlhf` but will automatically use the local dataset if it exists at:
+By default, the script targets `HuggingFaceH4/hh-rlhf`.
+For local datasets, set `DRRO_LOCAL_DATASET_DIR` in `project_paths.env` (or export it in shell), for example:
 
 ```
-/home/ykwang/common_dataset_model/dataset/Anthropic_hh-rlhf
+DRRO_LOCAL_DATASET_DIR=./datasets/Anthropic_hh-rlhf
 ```
 
-You can override with:
+You can also override at runtime:
 
 ```
---dataset /path/to/dataset_dir
+--local_dataset_dir /path/to/dataset_dir
 ```
 
 The script converts prompts into a JSONL file with a stable "Human/Assistant" chat template.

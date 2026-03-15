@@ -3,16 +3,26 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_NAME="${ENV_NAME:-verl_vllm}"
+MYCODE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PATH_CFG="${DRRO_PATH_CONFIG:-${MYCODE_ROOT}/project_paths.env}"
+if [[ -f "${PATH_CFG}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PATH_CFG}"
+fi
 
 if command -v conda >/dev/null 2>&1; then
   source "$(conda info --base)/etc/profile.d/conda.sh"
   conda activate "${ENV_NAME}"
 fi
 
-OUTPUT_ROOT="${OUTPUT_ROOT:-/home/ykwang/mtdata2/DRRO}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${DRRO_OUTPUT_ROOT:-}}"
+if [[ -z "${OUTPUT_ROOT}" ]]; then
+  echo "Set DRRO_OUTPUT_ROOT in project_paths.env or export OUTPUT_ROOT." >&2
+  exit 1
+fi
 PAIR_DIR="${PAIR_DIR:-${OUTPUT_ROOT}/proxy_pairs_50k}"
 PROXY_OUT="${PROXY_OUT:-${OUTPUT_ROOT}/proxy_rm_minilm_50k}"
-DATASET_PATH="${DATASET_PATH:-}"
+DATASET_PATH="${DATASET_PATH:-${DRRO_LOCAL_DATASET_DIR:-}}"
 NUM_PAIRS="${NUM_PAIRS:-50000}"
 NUM_SHARDS="${NUM_SHARDS:-4}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"

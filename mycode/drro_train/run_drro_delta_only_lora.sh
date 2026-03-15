@@ -3,7 +3,17 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_NAME="verl_vllm"
-RAY_TMPDIR="${RAY_TMPDIR:-/home/ykwang/mtdata2/ray_tmp}"
+MYCODE_ROOT="$(cd "${PROJECT_DIR}/.." && pwd)"
+PATH_CFG="${DRRO_PATH_CONFIG:-${MYCODE_ROOT}/project_paths.env}"
+if [[ -f "${PATH_CFG}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PATH_CFG}"
+fi
+RAY_TMPDIR="${RAY_TMPDIR:-${DRRO_RAY_TMPDIR:-}}"
+if [[ -z "${RAY_TMPDIR}" ]]; then
+  echo "Set DRRO_RAY_TMPDIR in project_paths.env or export RAY_TMPDIR." >&2
+  exit 1
+fi
 
 if ! command -v conda >/dev/null 2>&1; then
   echo "conda is not available in PATH" >&2
@@ -19,7 +29,11 @@ mkdir -p "${RAY_TMPDIR}"
 export RAY_TMPDIR
 export RAY_TEMP_DIR="${RAY_TMPDIR}"
 
-OUT_BASE="${OUT_BASE:-/home/ykwang/mtdata2/DRRO}"
+OUT_BASE="${OUT_BASE:-${DRRO_OUTPUT_ROOT:-}}"
+if [[ -z "${OUT_BASE}" ]]; then
+  echo "Set DRRO_OUTPUT_ROOT in project_paths.env or export OUT_BASE." >&2
+  exit 1
+fi
 NUM_GPUS="${NUM_GPUS:-3}"
 REWARD_GPUS="${REWARD_GPUS:-}"
 if [[ -z "${REWARD_GPUS}" ]]; then
