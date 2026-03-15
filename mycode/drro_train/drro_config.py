@@ -432,7 +432,8 @@ def build_config(
 
     verl_root = ensure_verl_on_path()
     project_root = os.path.dirname(os.path.abspath(__file__))
-    python_paths = [project_root]
+    mycode_root = os.path.dirname(project_root)
+    python_paths = [project_root, mycode_root]
     if verl_root:
         python_paths.append(verl_root)
     existing_pythonpath = os.environ.get("PYTHONPATH")

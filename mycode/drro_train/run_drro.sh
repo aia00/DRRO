@@ -179,7 +179,7 @@ if [[ "${ROLLOUT_BACKEND}" == "vllm" ]]; then
 fi
 
 WANDB_ARGS=()
-if [[ "${ENABLE_WANDB:-1}" == "1" ]]; then
+if [[ "${ENABLE_WANDB:-0}" == "1" ]]; then
   WANDB_ARGS=(--wandb --wandb_project "${WANDB_PROJECT:-drro-grpo}")
   if [[ -n "${WANDB_RUN_NAME:-}" ]]; then
     WANDB_ARGS+=(--wandb_run_name "${WANDB_RUN_NAME}")

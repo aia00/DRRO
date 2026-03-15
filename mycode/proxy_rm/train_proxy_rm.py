@@ -152,6 +152,7 @@ def main() -> None:
     best_acc = -1.0
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    eval_history: List[Dict[str, float]] = []
 
     global_step = 0
     stop_early = False
@@ -176,19 +177,67 @@ def main() -> None:
                     stop_early = True
                     break
             pbar.set_postfix({"loss": f"{loss.item():.4f}"})
-        if stop_early:
-            break
 
         metrics = evaluate(model, val_loader, device)
         print(f"val loss={metrics['loss']:.4f} acc={metrics['accuracy']:.4f}")
+        eval_history.append(
+            {
+                "epoch": float(epoch),
+                "val_loss": float(metrics["loss"]),
+                "val_accuracy": float(metrics["accuracy"]),
+            }
+        )
         if args.save_best and metrics["accuracy"] > best_acc:
             best_acc = metrics["accuracy"]
             model.save_pretrained(output_dir)
             tokenizer.save_pretrained(output_dir)
+        if stop_early:
+            break
 
     if not args.save_best:
         model.save_pretrained(output_dir)
         tokenizer.save_pretrained(output_dir)
+    elif best_acc < 0.0:
+        # If no eval happened (very short runs), still save current model once.
+        model.save_pretrained(output_dir)
+        tokenizer.save_pretrained(output_dir)
+
+    if not eval_history:
+        metrics = evaluate(model, val_loader, device)
+        eval_history.append(
+            {
+                "epoch": 0.0,
+                "val_loss": float(metrics["loss"]),
+                "val_accuracy": float(metrics["accuracy"]),
+            }
+        )
+        if best_acc < 0.0:
+            best_acc = float(metrics["accuracy"])
+
+    if best_acc < 0.0:
+        best_acc = max(item["val_accuracy"] for item in eval_history)
+
+    summary = {
+        "model_name": args.model_name,
+        "train_jsonl": args.train_jsonl,
+        "val_jsonl": args.val_jsonl,
+        "train_samples": len(train_ds),
+        "val_samples": len(val_ds),
+        "epochs": args.epochs,
+        "max_steps": args.max_steps,
+        "grad_accum": args.grad_accum,
+        "seed": args.seed,
+        "global_step": global_step,
+        "optimizer_steps": global_step // max(args.grad_accum, 1),
+        "final_val_loss": eval_history[-1]["val_loss"],
+        "final_val_accuracy": eval_history[-1]["val_accuracy"],
+        "best_val_accuracy": float(best_acc),
+        "history": eval_history,
+    }
+    metrics_path = output_dir / "train_metrics.json"
+    with metrics_path.open("w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=True)
+    print(f"saved metrics: {metrics_path}")
 
 
 if __name__ == "__main__":

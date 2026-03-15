@@ -85,7 +85,7 @@ CMD=(
   --use_lora
 )
 
-if [[ "${ENABLE_WANDB:-1}" == "1" ]]; then
+if [[ "${ENABLE_WANDB:-0}" == "1" ]]; then
   CMD+=(--wandb --wandb_project "${WANDB_PROJECT:-drro-grpo}")
   if [[ -n "${WANDB_RUN_NAME:-}" ]]; then
     CMD+=(--wandb_run_name "${WANDB_RUN_NAME}")

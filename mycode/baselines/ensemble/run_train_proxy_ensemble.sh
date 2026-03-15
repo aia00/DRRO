@@ -26,6 +26,14 @@ if [[ -z "${PAIR_DIR}" ]]; then
 fi
 TRAIN_JSONL="${TRAIN_JSONL:-${PAIR_DIR}/train.jsonl}"
 VAL_JSONL="${VAL_JSONL:-${PAIR_DIR}/val.jsonl}"
+if [[ ! -f "${TRAIN_JSONL}" || ! -f "${VAL_JSONL}" ]]; then
+  echo "Missing pair files." >&2
+  echo "  TRAIN_JSONL=${TRAIN_JSONL}" >&2
+  echo "  VAL_JSONL=${VAL_JSONL}" >&2
+  echo "Set PAIR_DIR (or TRAIN_JSONL/VAL_JSONL) to an existing proxy-pair folder." >&2
+  echo "Example: PAIR_DIR=\${DRRO_OUTPUT_ROOT}/runs/proxy_pairs/proxy_pairs_50k" >&2
+  exit 1
+fi
 OUT_BASE="${DRRO_OUTPUT_ROOT:-}"
 if [[ -z "${OUT_BASE}" && -z "${OUT_DIR:-}" ]]; then
   echo "Set DRRO_OUTPUT_ROOT in project_paths.env or export OUT_DIR." >&2
@@ -34,6 +42,7 @@ fi
 OUT_DIR="${OUT_DIR:-${OUT_BASE}/proxy_ensemble}"
 
 MODEL_NAME="${MODEL_NAME:-microsoft/MiniLM-L12-H384-uncased}"
+MEMBER_MODEL_LIST="${MEMBER_MODEL_LIST:-microsoft/MiniLM-L12-H384-uncased,prajjwal1/bert-small,google/electra-small-discriminator,distilbert-base-uncased,distilroberta-base}"
 NUM_MEMBERS="${NUM_MEMBERS:-5}"
 SEEDS="${SEEDS:-42,43,44,45,46}"
 EPOCHS="${EPOCHS:-1}"
@@ -44,6 +53,8 @@ LR="${LR:-2e-5}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0.0}"
 GRAD_ACCUM="${GRAD_ACCUM:-1}"
 MAX_STEPS="${MAX_STEPS:-0}"
+PARALLEL_WORKERS="${PARALLEL_WORKERS:-4}"
+GPU_IDS="${GPU_IDS:-0,1,2,3}"
 
 CMD=(
   python train_proxy_ensemble.py
@@ -51,6 +62,7 @@ CMD=(
   --val_jsonl "${VAL_JSONL}"
   --output_dir "${OUT_DIR}"
   --model_name "${MODEL_NAME}"
+  --member_model_list "${MEMBER_MODEL_LIST}"
   --num_members "${NUM_MEMBERS}"
   --seeds "${SEEDS}"
   --epochs "${EPOCHS}"
@@ -61,6 +73,8 @@ CMD=(
   --weight_decay "${WEIGHT_DECAY}"
   --grad_accum "${GRAD_ACCUM}"
   --max_steps "${MAX_STEPS}"
+  --parallel_workers "${PARALLEL_WORKERS}"
+  --gpu_ids "${GPU_IDS}"
 )
 
 if [[ "${BF16:-0}" == "1" ]]; then
