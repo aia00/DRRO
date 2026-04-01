@@ -80,9 +80,9 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Tensor parallel size for vLLM. Set 0 for auto (default).",
     )
-    parser.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.5)
-    parser.add_argument("--vllm_max_num_batched_tokens", type=int, default=8192)
-    parser.add_argument("--vllm_max_num_seqs", type=int, default=1024)
+    parser.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.7)
+    parser.add_argument("--vllm_max_num_batched_tokens", type=int, default=16384)
+    parser.add_argument("--vllm_max_num_seqs", type=int, default=1536)
     parser.add_argument("--vllm_max_model_len", type=int, default=0)
     parser.add_argument("--vllm_logprobs_mode", type=str, default="processed_logprobs")
     parser.add_argument(
