@@ -1,6 +1,6 @@
 # DRRO-GRPO Over-Optimization Curve (VERL)
 
-This folder contains a VERL-based DRRO-GRPO training stack with proxy and gold reward models, plus plotting/eval scripts for KL vs reward curves.
+This folder contains an installed-VERL-based DRRO-GRPO training stack with proxy and gold reward models, plus plotting/eval scripts for KL vs reward curves.
 
 Code layout (consolidated):
 
@@ -17,6 +17,7 @@ Install dependencies:
 
 ```
 pip install -r requirements.txt
+pip install "verl==0.7.1"
 ```
 
 Configure paths once in `project_paths.env` (output root, ray tmp, local dataset, proxy pair dir).

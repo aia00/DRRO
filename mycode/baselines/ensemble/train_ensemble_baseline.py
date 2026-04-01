@@ -13,12 +13,6 @@ MYCODE_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 if MYCODE_ROOT not in sys.path:
     sys.path.insert(0, MYCODE_ROOT)
 
-from baselines.common.paths import ensure_verl_on_path
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate VERL package. Set VERL_ROOT or place verl/ next to this repo.")
-
 import ray
 from omegaconf import open_dict
 from verl.trainer import main_ppo

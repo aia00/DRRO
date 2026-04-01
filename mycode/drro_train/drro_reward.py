@@ -2,27 +2,21 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional
+from typing import ClassVar, Dict, List, Optional, Tuple
 
 import torch
 import os
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from drro_paths import ensure_verl_on_path
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate the VERL package. Set VERL_ROOT or place verl/ next to this script.")
-
 from verl import DataProto
+from verl.experimental.reward_loop.reward_manager.base import RewardManagerBase
 from verl.workers.reward_manager.abstract import AbstractRewardManager
 
 
-@dataclass
 class RewardStats:
-    mean: float
-    std: float
+    def __init__(self, mean: float, std: float) -> None:
+        self.mean = mean
+        self.std = std
 
 
 class HFRewardManager(AbstractRewardManager):
@@ -124,3 +118,97 @@ class HFRewardManager(AbstractRewardManager):
         if return_dict:
             return {"reward_tensor": reward_tensor, "reward_extra_info": reward_extra_info}
         return reward_tensor
+
+
+class LoopHFRewardManager(RewardManagerBase):
+    """Reward-loop compatible HF reward manager for public VERL."""
+
+    _tokenizer_cache: ClassVar[Dict[str, AutoTokenizer]] = {}
+    _model_cache: ClassVar[Dict[Tuple[str, str, Optional[torch.dtype]], torch.nn.Module]] = {}
+
+    def __init__(
+        self,
+        config,
+        tokenizer,
+        compute_score=None,
+        model_name: str = "",
+        reward_batch_size: int = 8,
+        reward_max_length: int = 512,
+        dtype: str = "float32",
+        device: Optional[str] = None,
+        **_: object,
+    ) -> None:
+        super().__init__(config, tokenizer, compute_score)
+        reward_cfg = config.reward.get("reward_kwargs", {})
+        model_name = model_name or reward_cfg.get("model_name", "")
+        reward_batch_size = int(reward_batch_size or reward_cfg.get("reward_batch_size", 8))
+        reward_max_length = int(reward_max_length or reward_cfg.get("reward_max_length", 512))
+        dtype = dtype or reward_cfg.get("dtype", "float32")
+        self.policy_tokenizer = tokenizer
+        self.model_name = model_name
+        self.reward_batch_size = reward_batch_size
+        self.reward_max_length = reward_max_length
+        self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.dtype = {
+            "bfloat16": torch.bfloat16,
+            "float16": torch.float16,
+            "float32": torch.float32,
+        }.get(dtype, torch.float32)
+        if self.device.type != "cuda":
+            self.dtype = torch.float32
+
+        if model_name not in self._tokenizer_cache:
+            reward_tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+            if reward_tokenizer.pad_token is None:
+                reward_tokenizer.pad_token = reward_tokenizer.eos_token or reward_tokenizer.unk_token
+            self._tokenizer_cache[model_name] = reward_tokenizer
+        self.reward_tokenizer = self._tokenizer_cache[model_name]
+
+        model_key = (model_name, str(self.device), self.dtype)
+        if model_key not in self._model_cache:
+            reward_model = AutoModelForSequenceClassification.from_pretrained(
+                model_name, num_labels=1, torch_dtype=self.dtype
+            )
+            if reward_model.config.pad_token_id is None and self.reward_tokenizer.pad_token_id is not None:
+                reward_model.config.pad_token_id = self.reward_tokenizer.pad_token_id
+            reward_model.to(self.device)
+            reward_model.eval()
+            for param in reward_model.parameters():
+                param.requires_grad_(False)
+            self._model_cache[model_key] = reward_model
+        self.reward_model = self._model_cache[model_key]
+
+    async def run_single(self, data: DataProto) -> dict:
+        assert len(data) == 1, "LoopHFRewardManager only supports a single sample"
+        reward = self._score_single(data)
+        return {
+            "reward_score": reward,
+            "reward_extra_info": {"reward": reward},
+        }
+
+    def _score_single(self, data: DataProto) -> float:
+        prompt_ids = data.batch["prompts"]
+        response_ids = data.batch["responses"]
+        attention_mask = data.batch["attention_mask"]
+
+        prompt_len = prompt_ids.shape[-1]
+        valid_prompt_lengths = attention_mask[:, :prompt_len].sum(dim=-1)
+        valid_response_lengths = attention_mask[:, prompt_len:].sum(dim=-1)
+
+        p_len = int(valid_prompt_lengths[0].item())
+        r_len = int(valid_response_lengths[0].item())
+        prompt = self.policy_tokenizer.decode(prompt_ids[0][-p_len:], skip_special_tokens=True)
+        response = self.policy_tokenizer.decode(response_ids[0][:r_len], skip_special_tokens=True)
+
+        with torch.no_grad():
+            enc = self.reward_tokenizer(
+                [prompt],
+                [response],
+                padding=True,
+                truncation=True,
+                max_length=self.reward_max_length,
+                return_tensors="pt",
+            )
+            enc = {k: v.to(self.device) for k, v in enc.items()}
+            logits = self.reward_model(**enc).logits.squeeze(-1)
+        return float(logits[0].float().cpu().item())

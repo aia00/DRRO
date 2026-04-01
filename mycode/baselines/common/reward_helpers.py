@@ -9,12 +9,6 @@ import numpy as np
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from baselines.common.paths import ensure_verl_on_path
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate VERL package. Set VERL_ROOT or place verl/ next to this repo.")
-
 from verl import DataProto
 
 

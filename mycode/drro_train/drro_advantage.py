@@ -8,12 +8,6 @@ from typing import Dict
 import numpy as np
 import torch
 
-from drro_paths import ensure_verl_on_path
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate the VERL package. Set VERL_ROOT or place verl/ next to this script.")
-
 from verl import DataProto
 from verl.trainer.ppo import ray_trainer as verl_ray_trainer
 from verl.trainer.ppo.core_algos import AdvantageEstimator

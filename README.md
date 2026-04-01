@@ -19,7 +19,6 @@ DRRO/
 │   │   └── common/      # Shared baseline utilities
 │   ├── project_paths.env.example
 │   └── requirements.txt
-└── verl/                # Local VERL codebase dependency
 ```
 
 ## 1) Setup
@@ -27,6 +26,7 @@ DRRO/
 ```bash
 cd mycode
 pip install -r requirements.txt
+pip install "verl==0.7.1"
 ```
 
 ## 2) Path Configuration (important)
@@ -42,7 +42,8 @@ Edit `mycode/project_paths.env`:
 - `DRRO_RAY_TMPDIR`
 - `DRRO_OUTPUT_ROOT`
 - `DRRO_PROXY_PAIRS_DIR`
-- `DRRO_VERL_ROOT` (optional)
+
+Install `verl` in the active environment before running training or baselines.
 
 If you want a custom location:
 ```bash

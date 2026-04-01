@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Sequence
 
 import torch
 
-from baselines.common.paths import ensure_verl_on_path
 from baselines.common.reward_helpers import (
     build_reward_bundle,
     extract_prompt_response_pairs,
@@ -17,10 +16,6 @@ from baselines.common.reward_helpers import (
     scatter_sequence_scores_to_token_rewards,
     score_pairs_with_bundle,
 )
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate VERL package. Set VERL_ROOT or place verl/ next to this repo.")
 
 from verl import DataProto
 from verl.workers.reward_manager.abstract import AbstractRewardManager

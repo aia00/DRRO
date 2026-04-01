@@ -12,14 +12,15 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf, open_dict
 
-from baselines.common.paths import ensure_verl_on_path, get_path_config
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate VERL package. Set VERL_ROOT or place verl/ next to this repo.")
+from baselines.common.paths import get_path_config, get_verl_config_dir
 PATH_CFG = get_path_config()
 
 from drro_train.drro_config import build_config as build_drro_config
+
+
+def normalize_vllm_load_format(load_format: str) -> str:
+    # vLLM 0.11+ removed the old "hf" alias. Preserve backward compatibility.
+    return "auto" if load_format == "hf" else load_format
 
 
 def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str = "gae") -> None:
@@ -42,7 +43,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         type=str,
         default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "baseline"),
     )
-    parser.add_argument("--num_steps", type=int, default=300)
+    parser.add_argument("--num_steps", type=int, default=400)
     parser.add_argument("--eval_every", type=int, default=10)
     parser.add_argument("--save_every", type=int, default=20)
     parser.add_argument("--eval_prompts", type=int, default=512)
@@ -80,8 +81,8 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
     parser.add_argument(
         "--vllm_load_format",
         type=str,
-        choices=["hf", "safetensors", "dummy"],
-        default="hf",
+        choices=["auto", "hf", "safetensors", "dummy"],
+        default="auto",
         help="Weight loading mode for vLLM rollout.",
     )
     parser.add_argument("--vllm_enforce_eager", action="store_true", default=False)
@@ -100,7 +101,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         "--attn_implementation",
         type=str,
         choices=["sdpa", "eager", "flash_attention_2"],
-        default="sdpa",
+        default="flash_attention_2",
         help="Attention backend for the policy model.",
     )
     parser.add_argument("--lr", type=float, default=1e-5)
@@ -168,6 +169,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
 
 
 def finalize_common_args(args: argparse.Namespace) -> argparse.Namespace:
+    args.vllm_load_format = normalize_vllm_load_format(args.vllm_load_format)
     if args.delta is None:
         args.delta = 2.5 * args.num_generations
     if args.beta_kl != 0.0:
@@ -192,7 +194,9 @@ def compose_verl_config(
     method_kwargs: Optional[dict[str, object]] = None,
 ):
     """Compose baseline VERL config using the existing DRRO config builder."""
-    config_dir = os.path.join(VERL_ROOT, "verl", "trainer", "config")
+    config_dir = get_verl_config_dir()
+    if config_dir is None:
+        raise RuntimeError("Could not locate installed `verl` trainer config directory.")
     cfg = build_drro_config(args, train_path, val_path, config_dir)
 
     with open_dict(cfg.trainer):

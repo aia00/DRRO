@@ -2,17 +2,19 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENV_NAME="${ENV_NAME:-verl_vllm}"
 MYCODE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PATH_CFG="${DRRO_PATH_CONFIG:-${MYCODE_ROOT}/project_paths.env}"
 if [[ -f "${PATH_CFG}" ]]; then
   # shellcheck disable=SC1090
   source "${PATH_CFG}"
 fi
+ENV_NAME="${ENV_NAME:-${DRRO_CONDA_ENV:-verl_vllm}}"
 
 if command -v conda >/dev/null 2>&1; then
   source "$(conda info --base)/etc/profile.d/conda.sh"
+  set +u
   conda activate "${ENV_NAME}"
+  set -u
 fi
 
 OUTPUT_ROOT="${OUTPUT_ROOT:-${DRRO_OUTPUT_ROOT:-}}"

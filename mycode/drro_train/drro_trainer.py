@@ -12,12 +12,6 @@ import torch
 
 from omegaconf import OmegaConf
 
-from drro_paths import ensure_verl_on_path
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate the VERL package. Set VERL_ROOT or place verl/ next to this script.")
-
 from verl import DataProto
 from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto
 from verl.trainer import main_ppo
@@ -44,7 +38,7 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         beta_kl: float,
         **kwargs,
     ) -> None:
-        super().__init__(*args, reward_fn=proxy_reward_fn, val_reward_fn=gold_reward_fn, **kwargs)
+        super().__init__(*args, **kwargs)
         self.proxy_reward_fn = proxy_reward_fn
         self.gold_reward_fn = gold_reward_fn
         self.log_csv_path = log_csv_path
@@ -202,12 +196,12 @@ class DrroTaskRunner(main_ppo.TaskRunner):
 
         actor_rollout_cls, ray_worker_group_cls = self.add_actor_rollout_worker(config)
         self.add_critic_worker(config)
-        self.add_reward_model_worker(config)
+        self.add_reward_model_resource_pool(config)
         self.add_ref_policy_worker(config, actor_rollout_cls)
 
         validate_config(
             config=config,
-            use_reference_policy=main_ppo.need_reference_policy(self.role_worker_mapping),
+            use_reference_policy=main_ppo.need_reference_policy(config),
             use_critic=main_ppo.need_critic(config),
         )
 

@@ -2,13 +2,13 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENV_NAME="verl_vllm"
 MYCODE_ROOT="$(cd "${PROJECT_DIR}/.." && pwd)"
 PATH_CFG="${DRRO_PATH_CONFIG:-${MYCODE_ROOT}/project_paths.env}"
 if [[ -f "${PATH_CFG}" ]]; then
   # shellcheck disable=SC1090
   source "${PATH_CFG}"
 fi
+ENV_NAME="${ENV_NAME:-${DRRO_CONDA_ENV:-verl_vllm}}"
 RAY_TMPDIR="${RAY_TMPDIR:-${DRRO_RAY_TMPDIR:-}}"
 if [[ -z "${RAY_TMPDIR}" ]]; then
   echo "Set DRRO_RAY_TMPDIR in project_paths.env or export RAY_TMPDIR." >&2
@@ -21,7 +21,9 @@ if ! command -v conda >/dev/null 2>&1; then
 fi
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
+set +u
 conda activate "${ENV_NAME}"
+set -u
 
 cd "${PROJECT_DIR}"
 
@@ -54,7 +56,7 @@ MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"
 POLICY_MODEL="${POLICY_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 PROXY_RM="${PROXY_RM:-OpenAssistant/reward-model-deberta-v3-base}"
 GOLD_RM="${GOLD_RM:-sileod/deberta-v3-large-tasksource-rlhf-reward-model}"
-NUM_STEPS="${NUM_STEPS:-300}"
+NUM_STEPS="${NUM_STEPS:-400}"
 LORA_R="${LORA_R:-8}"
 LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"

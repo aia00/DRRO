@@ -5,11 +5,7 @@ from __future__ import annotations
 
 import json
 import os
-from drro_paths import ensure_verl_on_path
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate the VERL package. Set VERL_ROOT or place verl/ next to this script.")
+from drro_paths import get_verl_config_dir
 
 import ray
 from omegaconf import OmegaConf
@@ -34,7 +30,9 @@ def main() -> None:
         prompts, args.eval_prompts, args.seed, args.output_dir
     )
 
-    config_dir = os.path.join(VERL_ROOT, "verl", "trainer", "config")
+    config_dir = get_verl_config_dir()
+    if config_dir is None:
+        raise RuntimeError("Could not locate installed `verl` trainer config directory.")
     config = build_config(args, train_path, val_path, config_dir)
 
     config_path = os.path.join(args.output_dir, "config.json")

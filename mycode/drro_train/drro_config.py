@@ -13,9 +13,14 @@ import torch
 from omegaconf import OmegaConf, open_dict
 
 from drro_data import get_custom_chat_template
-from drro_paths import ensure_verl_on_path, get_path_config
+from drro_paths import get_path_config
 
 PATH_CFG = get_path_config()
+
+
+def normalize_vllm_load_format(load_format: str) -> str:
+    # vLLM 0.11+ removed the old "hf" alias. Preserve backward compatibility.
+    return "auto" if load_format == "hf" else load_format
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "exp1"),
     )
-    parser.add_argument("--num_steps", type=int, default=300)
+    parser.add_argument("--num_steps", type=int, default=400)
     parser.add_argument("--eval_every", type=int, default=10)
     parser.add_argument("--save_every", type=int, default=20)
     parser.add_argument("--eval_prompts", type=int, default=512)
@@ -83,8 +88,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--vllm_load_format",
         type=str,
-        choices=["hf", "safetensors", "dummy"],
-        default="hf",
+        choices=["auto", "hf", "safetensors", "dummy"],
+        default="auto",
         help="Weight loading mode for vLLM rollout.",
     )
     parser.add_argument("--vllm_enforce_eager", action="store_true", default=False)
@@ -106,7 +111,7 @@ def parse_args() -> argparse.Namespace:
         "--attn_implementation",
         type=str,
         choices=["sdpa", "eager", "flash_attention_2"],
-        default="sdpa",
+        default="flash_attention_2",
         help="Attention backend for the policy model.",
     )
     parser.add_argument("--lr", type=float, default=1e-5)
@@ -244,6 +249,7 @@ def build_config(
     val_path: str,
     config_dir: str,
 ):
+    args.vllm_load_format = normalize_vllm_load_format(args.vllm_load_format)
     if args.beta_kl != 0.0:
         print("beta_kl is forced to 0.0 (no KL penalty in loss).")
         args.beta_kl = 0.0
@@ -341,7 +347,6 @@ def build_config(
             f"algorithm.adv_estimator={args.adv_estimator}",
             "algorithm.use_kl_in_reward=false",
             "reward_model.enable=false",
-            "reward_model.use_reward_loop=false",
             "reward_model.enable_resource_pool=false",
             f"trainer.logger={logger_list}",
             f"trainer.default_local_dir={args.output_dir}",
@@ -400,16 +405,28 @@ def build_config(
 
         cfg = hydra.compose(config_name="ppo_trainer", overrides=overrides)
 
+    project_root = os.path.dirname(os.path.abspath(__file__))
     cfg.actor_rollout_ref.model.custom_chat_template = get_custom_chat_template()
     dtype_str = "bfloat16" if args.bf16 else "float16" if args.fp16 else "float32"
+    reward_kwargs = {
+        "proxy_model": args.proxy_rm,
+        "gold_model": args.gold_rm,
+        "reward_batch_size": args.reward_batch_size,
+        "reward_max_length": args.reward_max_length,
+        "dtype": dtype_str,
+    }
     with open_dict(cfg.reward_model):
-        cfg.reward_model["reward_kwargs"] = {
-            "proxy_model": args.proxy_rm,
-            "gold_model": args.gold_rm,
+        cfg.reward_model["reward_kwargs"] = reward_kwargs
+    with open_dict(cfg.reward):
+        cfg.reward["reward_kwargs"] = {
+            "model_name": args.proxy_rm,
             "reward_batch_size": args.reward_batch_size,
             "reward_max_length": args.reward_max_length,
             "dtype": dtype_str,
         }
+        cfg.reward.reward_manager["source"] = "importlib"
+        cfg.reward.reward_manager["name"] = "LoopHFRewardManager"
+        cfg.reward.reward_manager.module["path"] = os.path.join(project_root, "drro_reward.py")
     with open_dict(cfg.trainer):
         cfg.trainer["log_csv_path"] = os.path.join(args.output_dir, "log.csv")
         cfg.trainer["drro_delta"] = args.delta
@@ -430,12 +447,8 @@ def build_config(
             cfg.actor_rollout_ref.rollout["load_format"] = args.vllm_load_format
             cfg.actor_rollout_ref.rollout["enable_sleep_mode"] = bool(args.vllm_enable_sleep_mode)
 
-    verl_root = ensure_verl_on_path()
-    project_root = os.path.dirname(os.path.abspath(__file__))
     mycode_root = os.path.dirname(project_root)
     python_paths = [project_root, mycode_root]
-    if verl_root:
-        python_paths.append(verl_root)
     existing_pythonpath = os.environ.get("PYTHONPATH")
     if existing_pythonpath:
         python_paths.append(existing_pythonpath)
@@ -459,8 +472,6 @@ def build_config(
         os.makedirs(ray_temp_dir, exist_ok=True)
         runtime_env = cfg.ray_kwargs.ray_init.get("runtime_env") or {}
         env_vars = runtime_env.get("env_vars") or {}
-        if verl_root:
-            env_vars["VERL_ROOT"] = verl_root
         env_vars["PYTHONPATH"] = pythonpath_value
         env_vars["RAY_TMPDIR"] = ray_temp_dir
         env_vars["RAY_TEMP_DIR"] = ray_temp_dir

@@ -2,13 +2,13 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENV_NAME="${ENV_NAME:-verl_vllm}"
 MYCODE_ROOT="$(cd "${PROJECT_DIR}/../.." && pwd)"
 PATH_CFG="${DRRO_PATH_CONFIG:-${MYCODE_ROOT}/project_paths.env}"
 if [[ -f "${PATH_CFG}" ]]; then
   # shellcheck disable=SC1090
   source "${PATH_CFG}"
 fi
+ENV_NAME="${ENV_NAME:-${DRRO_CONDA_ENV:-verl_vllm}}"
 RAY_TMPDIR="${RAY_TMPDIR:-${DRRO_RAY_TMPDIR:-}}"
 if [[ -z "${RAY_TMPDIR}" ]]; then
   echo "Set DRRO_RAY_TMPDIR in project_paths.env or export RAY_TMPDIR." >&2
@@ -20,7 +20,9 @@ if ! command -v conda >/dev/null 2>&1; then
   exit 1
 fi
 source "$(conda info --base)/etc/profile.d/conda.sh"
+set +u
 conda activate "${ENV_NAME}"
+set -u
 
 cd "${PROJECT_DIR}"
 mkdir -p "${RAY_TMPDIR}"
@@ -42,7 +44,7 @@ if [[ -z "${REWARD_GPUS}" ]]; then
   fi
 fi
 
-NUM_STEPS="${NUM_STEPS:-300}"
+NUM_STEPS="${NUM_STEPS:-400}"
 NUM_GENERATIONS="${NUM_GENERATIONS:-16}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"
 ENSEMBLE_AGG="${ENSEMBLE_AGG:-uwo}"

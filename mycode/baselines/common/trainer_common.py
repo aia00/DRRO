@@ -12,12 +12,7 @@ import numpy as np
 
 from omegaconf import OmegaConf
 
-from baselines.common.paths import ensure_verl_on_path
 from baselines.common.reward_helpers import merge_numeric_lists
-
-VERL_ROOT = ensure_verl_on_path()
-if VERL_ROOT is None:
-    raise RuntimeError("Could not locate VERL package. Set VERL_ROOT or place verl/ next to this repo.")
 
 import torch
 from verl import DataProto
