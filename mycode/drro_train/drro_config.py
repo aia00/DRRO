@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "exp1"),
     )
-    parser.add_argument("--num_steps", type=int, default=400)
+    parser.add_argument("--num_steps", type=int, default=250)
     parser.add_argument("--eval_every", type=int, default=10)
     parser.add_argument("--save_every", type=int, default=20)
     parser.add_argument("--eval_prompts", type=int, default=512)
@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Validation batch size (0 = use --batch_size_prompts).",
     )
-    parser.add_argument("--batch_size_prompts", type=int, default=8)
+    parser.add_argument("--batch_size_prompts", type=int, default=12)
     parser.add_argument("--num_generations", type=int, default=16)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--max_prompt_tokens", type=int, default=512)

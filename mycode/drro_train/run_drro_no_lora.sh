@@ -57,7 +57,7 @@ MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"
 POLICY_MODEL="${POLICY_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 PROXY_RM="${PROXY_RM:-OpenAssistant/reward-model-deberta-v3-base}"
 GOLD_RM="${GOLD_RM:-sileod/deberta-v3-large-tasksource-rlhf-reward-model}"
-NUM_STEPS="${NUM_STEPS:-400}"
+NUM_STEPS="${NUM_STEPS:-250}"
 if [[ -z "${DELTA2}" ]]; then
   DELTA2="$(awk "BEGIN{printf \"%.6f\", ${NUM_GENERATIONS}*2.5}")"
 fi
