@@ -118,13 +118,31 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
     parser.add_argument("--gamma", type=float, default=1.0)
 
     # Keep DRRO knobs for compatibility with shared config composition; unused here.
-    parser.add_argument("--delta", type=float, default=None)
-    parser.add_argument("--delta_alpha", type=float, default=0.0)
-    parser.add_argument("--delta_tau", type=int, default=20)
-    parser.add_argument("--delta_softmax_tau", type=float, default=2.0)
-    parser.add_argument("--delta_kl_estimator", type=str, choices=["k1", "k2", "k3"], default="k3")
-    parser.add_argument("--delta_min", type=float, default=0.0)
-    parser.add_argument("--delta_max", type=float, default=0.0)
+    parser.add_argument("--fixed_delta", "--delta", dest="fixed_delta", type=float, default=None)
+    parser.add_argument("--dynamic_delta_coeff", "--delta_alpha", dest="dynamic_delta_coeff", type=float, default=0.0)
+    parser.add_argument("--dynamic_kl_window", "--delta_tau", dest="dynamic_kl_window", type=int, default=20)
+    parser.add_argument("--soft_assign_tau", "--delta_softmax_tau", dest="soft_assign_tau", type=float, default=2.0)
+    parser.add_argument(
+        "--assign_mode",
+        type=str,
+        choices=["soft", "hard"],
+        default="soft",
+        help=(
+            "DRRO assignment rule. "
+            "'hard' = argmax_i(r_i - delta * p_i), winner gets +delta. "
+            "'soft' = softmax/SNIS bonus over the same score r_i - delta * p_i."
+        ),
+    )
+    parser.add_argument(
+        "--dynamic_kl_estimator",
+        "--delta_kl_estimator",
+        dest="dynamic_kl_estimator",
+        type=str,
+        choices=["k1", "k2", "k3"],
+        default="k3",
+    )
+    parser.add_argument("--dynamic_delta_min", "--delta_min", dest="dynamic_delta_min", type=float, default=0.0)
+    parser.add_argument("--dynamic_delta_max", "--delta_max", dest="dynamic_delta_max", type=float, default=0.0)
 
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_gpus", type=int, default=3)
@@ -170,8 +188,15 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
 
 def finalize_common_args(args: argparse.Namespace) -> argparse.Namespace:
     args.vllm_load_format = normalize_vllm_load_format(args.vllm_load_format)
-    if args.delta is None:
-        args.delta = 2.5 * args.num_generations
+    if args.fixed_delta is None:
+        args.fixed_delta = 2.5 * args.num_generations
+    args.delta = args.fixed_delta
+    args.delta_alpha = args.dynamic_delta_coeff
+    args.delta_tau = args.dynamic_kl_window
+    args.delta_softmax_tau = args.soft_assign_tau
+    args.delta_kl_estimator = args.dynamic_kl_estimator
+    args.delta_min = args.dynamic_delta_min
+    args.delta_max = args.dynamic_delta_max
     if args.beta_kl != 0.0:
         print("beta_kl is forced to 0.0 (no KL penalty in loss).")
         args.beta_kl = 0.0

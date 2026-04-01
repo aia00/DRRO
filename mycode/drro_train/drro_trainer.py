@@ -34,7 +34,7 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         proxy_reward_fn: AbstractRewardManager,
         gold_reward_fn: AbstractRewardManager,
         log_csv_path: str,
-        delta: float,
+        fixed_delta: float,
         beta_kl: float,
         **kwargs,
     ) -> None:
@@ -42,7 +42,7 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         self.proxy_reward_fn = proxy_reward_fn
         self.gold_reward_fn = gold_reward_fn
         self.log_csv_path = log_csv_path
-        self.delta = delta
+        self.fixed_delta = fixed_delta
         self.beta_kl = beta_kl
         adv_name = str(self.config.algorithm.adv_estimator)
         self.method = "ppo" if adv_name == "gae" else "drro_grpo"
@@ -157,7 +157,8 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         row = {
             "step": self.global_steps,
             "method": self.method,
-            "delta": self.delta,
+            "fixed_delta": self.fixed_delta,
+            "delta": self.fixed_delta,
             "beta_kl": self.beta_kl,
             "kl": kl_mean,
             "kl_per_token": kl_mean,
@@ -168,6 +169,14 @@ class DRRORayPPOTrainer(RayPPOTrainer):
             "gold_score_norm": gold_norm,
         }
         delta_state = get_drro_delta_state()
+        row["effective_delta"] = delta_state["effective_delta"]
+        row["dynamic_delta_coeff"] = delta_state["dynamic_delta_coeff"]
+        row["dynamic_kl_last"] = delta_state["dynamic_kl_last"]
+        row["dynamic_kl_mean"] = delta_state["dynamic_kl_mean"]
+        row["dynamic_kl_window"] = delta_state["dynamic_kl_window"]
+        row["soft_assign_tau"] = delta_state["soft_assign_tau"]
+        row["assign_mode"] = delta_state["assign_mode"]
+        # Legacy aliases for older plotting code.
         row["delta_runtime"] = delta_state["delta_runtime"]
         row["delta_alpha"] = delta_state["delta_alpha"]
         row["delta_kl_last"] = delta_state["kl_est_last"]
@@ -284,7 +293,7 @@ class DrroTaskRunner(main_ppo.TaskRunner):
             proxy_reward_fn=proxy_reward_fn,
             gold_reward_fn=gold_reward_fn,
             log_csv_path=config.trainer.get("log_csv_path"),
-            delta=config.trainer.get("drro_delta", 0.0),
+            fixed_delta=config.trainer.get("fixed_delta", config.trainer.get("drro_delta", 0.0)),
             beta_kl=config.trainer.get("drro_beta_kl", 0.0),
             train_dataset=train_dataset,
             val_dataset=val_dataset,

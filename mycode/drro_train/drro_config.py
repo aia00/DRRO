@@ -127,47 +127,72 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gae_lambda", type=float, default=0.95)
     parser.add_argument("--gamma", type=float, default=1.0)
     parser.add_argument(
+        "--fixed_delta",
         "--delta",
+        dest="fixed_delta",
         type=float,
         default=None,
-        help="Base DRRO delta. If unset, defaults to 2.5 * num_generations.",
+        help="Fixed DRRO bonus. If unset, defaults to 2.5 * num_generations.",
     )
     parser.add_argument(
+        "--dynamic_delta_coeff",
         "--delta_alpha",
+        dest="dynamic_delta_coeff",
         type=float,
         default=0.0,
-        help="If >0, use dynamic delta: delta = alpha * smoothed_kl.",
+        help="Dynamic-delta coefficient: effective_delta = coeff * smoothed_KL.",
     )
     parser.add_argument(
+        "--dynamic_kl_window",
         "--delta_tau",
+        dest="dynamic_kl_window",
         type=int,
         default=20,
-        help="Sliding window size for KL smoothing in dynamic-delta mode.",
+        help="Sliding-window size for KL smoothing in dynamic-delta mode.",
     )
     parser.add_argument(
+        "--soft_assign_tau",
         "--delta_softmax_tau",
+        dest="soft_assign_tau",
         type=float,
         default=2.0,
-        help="Temperature for softmax DRRO surrogate (smaller -> closer to hard max).",
+        help="Soft-assignment temperature (smaller -> closer to hard max).",
     )
     parser.add_argument(
+        "--assign_mode",
+        type=str,
+        choices=["soft", "hard"],
+        default="soft",
+        help=(
+            "DRRO bonus assignment rule. "
+            "'hard' = argmax_i(r_i - delta * p_i), then only the winner gets +delta. "
+            "'soft' = use the same score r_i - delta * p_i, then distribute bonus with softmax/SNIS."
+        ),
+    )
+    parser.add_argument(
+        "--dynamic_kl_estimator",
         "--delta_kl_estimator",
+        dest="dynamic_kl_estimator",
         type=str,
         choices=["k1", "k2", "k3"],
         default="k3",
         help="KL estimator used by dynamic delta.",
     )
     parser.add_argument(
+        "--dynamic_delta_min",
         "--delta_min",
+        dest="dynamic_delta_min",
         type=float,
         default=0.0,
-        help="Optional lower bound for dynamic delta (0 disables clamp).",
+        help="Optional lower bound for effective_delta (0 disables clamp).",
     )
     parser.add_argument(
+        "--dynamic_delta_max",
         "--delta_max",
+        dest="dynamic_delta_max",
         type=float,
         default=0.0,
-        help="Optional upper bound for dynamic delta (0 disables clamp).",
+        help="Optional upper bound for effective_delta (0 disables clamp).",
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_gpus", type=int, default=3)
@@ -206,8 +231,16 @@ def parse_args() -> argparse.Namespace:
         help="Normalize rewards using step-0 baseline for plotting.",
     )
     args = parser.parse_args()
-    if args.delta is None:
-        args.delta = 2.5 * args.num_generations
+    if args.fixed_delta is None:
+        args.fixed_delta = 2.5 * args.num_generations
+    # Backward-compatible aliases for older code paths and saved configs.
+    args.delta = args.fixed_delta
+    args.delta_alpha = args.dynamic_delta_coeff
+    args.delta_tau = args.dynamic_kl_window
+    args.delta_softmax_tau = args.soft_assign_tau
+    args.delta_kl_estimator = args.dynamic_kl_estimator
+    args.delta_min = args.dynamic_delta_min
+    args.delta_max = args.dynamic_delta_max
     return args
 
 
@@ -429,6 +462,15 @@ def build_config(
         cfg.reward.reward_manager.module["path"] = os.path.join(project_root, "drro_reward.py")
     with open_dict(cfg.trainer):
         cfg.trainer["log_csv_path"] = os.path.join(args.output_dir, "log.csv")
+        cfg.trainer["fixed_delta"] = args.fixed_delta
+        cfg.trainer["dynamic_delta_coeff"] = args.dynamic_delta_coeff
+        cfg.trainer["dynamic_kl_window"] = args.dynamic_kl_window
+        cfg.trainer["soft_assign_tau"] = args.soft_assign_tau
+        cfg.trainer["assign_mode"] = args.assign_mode
+        cfg.trainer["dynamic_kl_estimator"] = args.dynamic_kl_estimator
+        cfg.trainer["dynamic_delta_min"] = args.dynamic_delta_min
+        cfg.trainer["dynamic_delta_max"] = args.dynamic_delta_max
+        # Legacy keys kept for backward compatibility with old logs/eval scripts.
         cfg.trainer["drro_delta"] = args.delta
         cfg.trainer["drro_delta_alpha"] = args.delta_alpha
         cfg.trainer["drro_delta_tau"] = args.delta_tau

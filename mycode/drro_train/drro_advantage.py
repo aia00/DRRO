@@ -1,4 +1,9 @@
-"""DRRO delta logic and GRPO advantage patching."""
+"""DRRO bonus logic and GRPO advantage patching.
+
+Assignment modes:
+- hard: compute score_i = r_i - delta * p_i, pick argmax_i(score_i), add +delta only to that winner.
+- soft: use the same score_i = r_i - delta * p_i, then distribute bonus with a softmax/SNIS weighting.
+"""
 
 from __future__ import annotations
 
@@ -13,60 +18,77 @@ from verl.trainer.ppo import ray_trainer as verl_ray_trainer
 from verl.trainer.ppo.core_algos import AdvantageEstimator
 
 
-GLOBAL_DELTA = 0.0
-GLOBAL_DELTA_ALPHA = 0.0
-GLOBAL_DELTA_TAU = 20
-GLOBAL_DELTA_KL_ESTIMATOR = "k3"
-GLOBAL_DELTA_MIN = 0.0
-GLOBAL_DELTA_MAX = 0.0
-GLOBAL_SOFTMAX_TAU = 2.0
-GLOBAL_KL_WINDOW = deque(maxlen=20)
-GLOBAL_LAST_KL_EST = 0.0
-GLOBAL_LAST_KL_WINDOW = 0.0
-GLOBAL_LAST_DYNAMIC_DELTA = 0.0
+GLOBAL_FIXED_DELTA = 0.0
+GLOBAL_DYNAMIC_DELTA_COEFF = 0.0
+GLOBAL_DYNAMIC_KL_WINDOW = 20
+GLOBAL_DYNAMIC_KL_ESTIMATOR = "k3"
+GLOBAL_DYNAMIC_DELTA_MIN = 0.0
+GLOBAL_DYNAMIC_DELTA_MAX = 0.0
+GLOBAL_SOFT_ASSIGN_TAU = 2.0
+GLOBAL_ASSIGN_MODE = "soft"
+GLOBAL_KL_HISTORY = deque(maxlen=20)
+GLOBAL_LAST_DYNAMIC_KL = 0.0
+GLOBAL_LAST_DYNAMIC_KL_MEAN = 0.0
+GLOBAL_LAST_EFFECTIVE_DELTA = 0.0
 ORIG_COMPUTE_ADV = verl_ray_trainer.compute_advantage
 
 
-def set_drro_delta(delta: float) -> None:
-    global GLOBAL_DELTA
-    GLOBAL_DELTA = delta
+def set_fixed_delta(fixed_delta: float) -> None:
+    global GLOBAL_FIXED_DELTA
+    GLOBAL_FIXED_DELTA = fixed_delta
 
 
-def set_drro_softmax_tau(softmax_tau: float) -> None:
-    global GLOBAL_SOFTMAX_TAU
-    GLOBAL_SOFTMAX_TAU = max(float(softmax_tau), 1e-6)
+def set_soft_assign_tau(soft_assign_tau: float) -> None:
+    global GLOBAL_SOFT_ASSIGN_TAU
+    GLOBAL_SOFT_ASSIGN_TAU = max(float(soft_assign_tau), 1e-6)
 
 
-def set_drro_dynamic_delta(
-    alpha: float,
-    tau: int,
-    kl_estimator: str = "k3",
-    delta_min: float = 0.0,
-    delta_max: float = 0.0,
+def set_assign_mode(assign_mode: str) -> None:
+    global GLOBAL_ASSIGN_MODE
+    if assign_mode not in {"soft", "hard"}:
+        raise ValueError(f"Unsupported assign_mode: {assign_mode}")
+    GLOBAL_ASSIGN_MODE = assign_mode
+
+
+def set_dynamic_delta_config(
+    dynamic_delta_coeff: float,
+    dynamic_kl_window: int,
+    dynamic_kl_estimator: str = "k3",
+    dynamic_delta_min: float = 0.0,
+    dynamic_delta_max: float = 0.0,
 ) -> None:
-    global GLOBAL_DELTA_ALPHA, GLOBAL_DELTA_TAU, GLOBAL_DELTA_KL_ESTIMATOR
-    global GLOBAL_DELTA_MIN, GLOBAL_DELTA_MAX, GLOBAL_KL_WINDOW
-    global GLOBAL_LAST_KL_EST, GLOBAL_LAST_KL_WINDOW, GLOBAL_LAST_DYNAMIC_DELTA
-    GLOBAL_DELTA_ALPHA = float(alpha)
-    GLOBAL_DELTA_TAU = max(int(tau), 1)
-    GLOBAL_DELTA_KL_ESTIMATOR = kl_estimator
-    GLOBAL_DELTA_MIN = max(float(delta_min), 0.0)
-    GLOBAL_DELTA_MAX = max(float(delta_max), 0.0)
-    GLOBAL_KL_WINDOW = deque(maxlen=GLOBAL_DELTA_TAU)
-    GLOBAL_LAST_KL_EST = 0.0
-    GLOBAL_LAST_KL_WINDOW = 0.0
-    GLOBAL_LAST_DYNAMIC_DELTA = GLOBAL_DELTA
+    global GLOBAL_DYNAMIC_DELTA_COEFF, GLOBAL_DYNAMIC_KL_WINDOW, GLOBAL_DYNAMIC_KL_ESTIMATOR
+    global GLOBAL_DYNAMIC_DELTA_MIN, GLOBAL_DYNAMIC_DELTA_MAX, GLOBAL_KL_HISTORY
+    global GLOBAL_LAST_DYNAMIC_KL, GLOBAL_LAST_DYNAMIC_KL_MEAN, GLOBAL_LAST_EFFECTIVE_DELTA
+    GLOBAL_DYNAMIC_DELTA_COEFF = float(dynamic_delta_coeff)
+    GLOBAL_DYNAMIC_KL_WINDOW = max(int(dynamic_kl_window), 1)
+    GLOBAL_DYNAMIC_KL_ESTIMATOR = dynamic_kl_estimator
+    GLOBAL_DYNAMIC_DELTA_MIN = max(float(dynamic_delta_min), 0.0)
+    GLOBAL_DYNAMIC_DELTA_MAX = max(float(dynamic_delta_max), 0.0)
+    GLOBAL_KL_HISTORY = deque(maxlen=GLOBAL_DYNAMIC_KL_WINDOW)
+    GLOBAL_LAST_DYNAMIC_KL = 0.0
+    GLOBAL_LAST_DYNAMIC_KL_MEAN = 0.0
+    GLOBAL_LAST_EFFECTIVE_DELTA = GLOBAL_FIXED_DELTA
 
 
 def get_drro_delta_state() -> Dict[str, float]:
     return {
-        "delta_base": float(GLOBAL_DELTA),
-        "delta_alpha": float(GLOBAL_DELTA_ALPHA),
-        "delta_runtime": float(GLOBAL_LAST_DYNAMIC_DELTA),
-        "kl_est_last": float(GLOBAL_LAST_KL_EST),
-        "kl_est_window": float(GLOBAL_LAST_KL_WINDOW),
-        "delta_tau": float(GLOBAL_DELTA_TAU),
-        "delta_softmax_tau": float(GLOBAL_SOFTMAX_TAU),
+        "fixed_delta": float(GLOBAL_FIXED_DELTA),
+        "dynamic_delta_coeff": float(GLOBAL_DYNAMIC_DELTA_COEFF),
+        "effective_delta": float(GLOBAL_LAST_EFFECTIVE_DELTA),
+        "dynamic_kl_last": float(GLOBAL_LAST_DYNAMIC_KL),
+        "dynamic_kl_mean": float(GLOBAL_LAST_DYNAMIC_KL_MEAN),
+        "dynamic_kl_window": float(GLOBAL_DYNAMIC_KL_WINDOW),
+        "soft_assign_tau": float(GLOBAL_SOFT_ASSIGN_TAU),
+        "assign_mode": GLOBAL_ASSIGN_MODE,
+        # Legacy aliases for existing log consumers.
+        "delta_base": float(GLOBAL_FIXED_DELTA),
+        "delta_alpha": float(GLOBAL_DYNAMIC_DELTA_COEFF),
+        "delta_runtime": float(GLOBAL_LAST_EFFECTIVE_DELTA),
+        "kl_est_last": float(GLOBAL_LAST_DYNAMIC_KL),
+        "kl_est_window": float(GLOBAL_LAST_DYNAMIC_KL_MEAN),
+        "delta_tau": float(GLOBAL_DYNAMIC_KL_WINDOW),
+        "delta_softmax_tau": float(GLOBAL_SOFT_ASSIGN_TAU),
     }
 
 
@@ -80,9 +102,9 @@ def _estimate_kl_from_batch(data: DataProto, response_mask: torch.Tensor, old_lo
         return None
 
     diff = (old_log_probs - ref_log_prob) * response_mask
-    if GLOBAL_DELTA_KL_ESTIMATOR == "k1":
+    if GLOBAL_DYNAMIC_KL_ESTIMATOR == "k1":
         kl = diff[valid].mean()
-    elif GLOBAL_DELTA_KL_ESTIMATOR == "k2":
+    elif GLOBAL_DYNAMIC_KL_ESTIMATOR == "k2":
         kl = 0.5 * diff[valid].pow(2).mean()
     else:
         # Schulman k3 estimator for KL(q||p): (p/q - 1) - log(p/q),
@@ -92,33 +114,38 @@ def _estimate_kl_from_batch(data: DataProto, response_mask: torch.Tensor, old_lo
     return float(kl.item())
 
 
-def _resolve_dynamic_delta(data: DataProto, base_delta: float, response_mask: torch.Tensor, old_log_probs: torch.Tensor) -> float:
-    global GLOBAL_LAST_KL_EST, GLOBAL_LAST_KL_WINDOW, GLOBAL_LAST_DYNAMIC_DELTA
-    if GLOBAL_DELTA_ALPHA <= 0:
-        GLOBAL_LAST_DYNAMIC_DELTA = base_delta
-        return base_delta
+def _resolve_effective_delta(
+    data: DataProto,
+    fixed_delta: float,
+    response_mask: torch.Tensor,
+    old_log_probs: torch.Tensor,
+) -> float:
+    global GLOBAL_LAST_DYNAMIC_KL, GLOBAL_LAST_DYNAMIC_KL_MEAN, GLOBAL_LAST_EFFECTIVE_DELTA
+    if GLOBAL_DYNAMIC_DELTA_COEFF <= 0:
+        GLOBAL_LAST_EFFECTIVE_DELTA = fixed_delta
+        return fixed_delta
 
     kl_est = _estimate_kl_from_batch(data, response_mask, old_log_probs)
     if kl_est is None:
-        GLOBAL_LAST_DYNAMIC_DELTA = base_delta
-        return base_delta
+        GLOBAL_LAST_EFFECTIVE_DELTA = fixed_delta
+        return fixed_delta
 
-    GLOBAL_LAST_KL_EST = kl_est
-    GLOBAL_KL_WINDOW.append(kl_est)
-    kl_window = float(np.mean(GLOBAL_KL_WINDOW))
-    GLOBAL_LAST_KL_WINDOW = kl_window
+    GLOBAL_LAST_DYNAMIC_KL = kl_est
+    GLOBAL_KL_HISTORY.append(kl_est)
+    dynamic_kl_mean = float(np.mean(GLOBAL_KL_HISTORY))
+    GLOBAL_LAST_DYNAMIC_KL_MEAN = dynamic_kl_mean
 
-    delta = GLOBAL_DELTA_ALPHA * kl_window
-    if GLOBAL_DELTA_MIN > 0:
-        delta = max(delta, GLOBAL_DELTA_MIN)
-    if GLOBAL_DELTA_MAX > 0:
-        delta = min(delta, GLOBAL_DELTA_MAX)
-    GLOBAL_LAST_DYNAMIC_DELTA = float(delta)
-    return float(delta)
+    effective_delta = GLOBAL_DYNAMIC_DELTA_COEFF * dynamic_kl_mean
+    if GLOBAL_DYNAMIC_DELTA_MIN > 0:
+        effective_delta = max(effective_delta, GLOBAL_DYNAMIC_DELTA_MIN)
+    if GLOBAL_DYNAMIC_DELTA_MAX > 0:
+        effective_delta = min(effective_delta, GLOBAL_DYNAMIC_DELTA_MAX)
+    GLOBAL_LAST_EFFECTIVE_DELTA = float(effective_delta)
+    return float(effective_delta)
 
 
-def apply_drro_delta(data: DataProto, delta: float) -> DataProto:
-    if delta <= 0 and GLOBAL_DELTA_ALPHA <= 0:
+def apply_drro_bonus(data: DataProto, fixed_delta: float) -> DataProto:
+    if fixed_delta <= 0 and GLOBAL_DYNAMIC_DELTA_COEFF <= 0:
         return data
     if "old_log_probs" not in data.batch:
         raise ValueError("old_log_probs missing for DRRO delta computation.")
@@ -131,7 +158,7 @@ def apply_drro_delta(data: DataProto, delta: float) -> DataProto:
     token_rewards = data.batch.get("token_level_rewards")
 
     lengths = response_mask.sum(dim=-1).clamp(min=1)
-    effective_delta = _resolve_dynamic_delta(data, delta, response_mask, old_log_probs)
+    effective_delta = _resolve_effective_delta(data, fixed_delta, response_mask, old_log_probs)
     if effective_delta <= 0:
         return data
     avg_logp = ((old_log_probs * response_mask).sum(dim=-1) / lengths).detach()
@@ -146,22 +173,29 @@ def apply_drro_delta(data: DataProto, delta: float) -> DataProto:
     for idx, uid in enumerate(uids):
         groups.setdefault(uid, []).append(idx)
 
-    temperature = max(float(GLOBAL_SOFTMAX_TAU), 1e-6)
+    temperature = max(float(GLOBAL_SOFT_ASSIGN_TAU), 1e-6)
     for idxs in groups.values():
         idx_tensor = torch.tensor(idxs, device=scores.device, dtype=torch.long)
         group_scores = scores[idx_tensor]
         group_logp = avg_logp[idx_tensor]
         proposal_q = torch.softmax(group_logp, dim=0).clamp(min=1e-12).detach()
 
-        # Softmax surrogate of max(r_i - delta * p_i), estimated via SNIS weights.
-        soft_scores = group_scores - effective_delta * proposal_q
-        log_u = (soft_scores / temperature) - torch.log(proposal_q)
-        weights = torch.softmax(log_u, dim=0).detach()
+        if GLOBAL_ASSIGN_MODE == "hard":
+            # Original winner-take-all DRRO: choose argmax_i(r_i - delta * p_i),
+            # then only that completion receives +delta.
+            winner = torch.argmax(group_scores - effective_delta * proposal_q).item()
+            delta_scores[idx_tensor[winner]] += effective_delta
+        else:
+            # Soft assignment over the same score r_i - delta * p_i, using the
+            # softmax/SNIS surrogate derived for the smooth max objective.
+            soft_scores = group_scores - effective_delta * proposal_q
+            log_u = (soft_scores / temperature) - torch.log(proposal_q)
+            weights = torch.softmax(log_u, dim=0).detach()
 
-        group_size = float(len(idxs))
-        bonus = (group_size * effective_delta) * (weights * proposal_q)
-        bonus = torch.nan_to_num(bonus.detach(), nan=0.0, posinf=0.0, neginf=0.0)
-        delta_scores[idx_tensor] += bonus
+            group_size = float(len(idxs))
+            bonus = (group_size * effective_delta) * (weights * proposal_q)
+            bonus = torch.nan_to_num(bonus.detach(), nan=0.0, posinf=0.0, neginf=0.0)
+            delta_scores[idx_tensor] += bonus
 
     penalty = None
     if token_rewards is not None:
@@ -188,8 +222,8 @@ def compute_advantage_drro(
     norm_adv_by_std_in_grpo: bool = True,
     config=None,
 ):
-    if (GLOBAL_DELTA > 0 or GLOBAL_DELTA_ALPHA > 0) and adv_estimator == AdvantageEstimator.GRPO:
-        data = apply_drro_delta(data, GLOBAL_DELTA)
+    if (GLOBAL_FIXED_DELTA > 0 or GLOBAL_DYNAMIC_DELTA_COEFF > 0) and adv_estimator == AdvantageEstimator.GRPO:
+        data = apply_drro_bonus(data, GLOBAL_FIXED_DELTA)
     return ORIG_COMPUTE_ADV(
         data,
         adv_estimator=adv_estimator,
@@ -202,21 +236,23 @@ def compute_advantage_drro(
 
 
 def enable_drro_grpo(
-    delta: float,
-    delta_alpha: float = 0.0,
-    delta_tau: int = 20,
-    delta_softmax_tau: float = 2.0,
-    delta_kl_estimator: str = "k3",
-    delta_min: float = 0.0,
-    delta_max: float = 0.0,
+    fixed_delta: float,
+    dynamic_delta_coeff: float = 0.0,
+    dynamic_kl_window: int = 20,
+    soft_assign_tau: float = 2.0,
+    assign_mode: str = "soft",
+    dynamic_kl_estimator: str = "k3",
+    dynamic_delta_min: float = 0.0,
+    dynamic_delta_max: float = 0.0,
 ) -> None:
-    set_drro_delta(delta)
-    set_drro_softmax_tau(delta_softmax_tau)
-    set_drro_dynamic_delta(
-        alpha=delta_alpha,
-        tau=delta_tau,
-        kl_estimator=delta_kl_estimator,
-        delta_min=delta_min,
-        delta_max=delta_max,
+    set_fixed_delta(fixed_delta)
+    set_soft_assign_tau(soft_assign_tau)
+    set_assign_mode(assign_mode)
+    set_dynamic_delta_config(
+        dynamic_delta_coeff=dynamic_delta_coeff,
+        dynamic_kl_window=dynamic_kl_window,
+        dynamic_kl_estimator=dynamic_kl_estimator,
+        dynamic_delta_min=dynamic_delta_min,
+        dynamic_delta_max=dynamic_delta_max,
     )
     verl_ray_trainer.compute_advantage = compute_advantage_drro

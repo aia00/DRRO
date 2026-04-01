@@ -22,12 +22,17 @@ pip install "verl==0.7.1"
 
 Configure paths once in `project_paths.env` (output root, ray tmp, local dataset, proxy pair dir).
 
-Run GRPO (delta=0) and DRRO-GRPO (delta>0) with vLLM rollout (Ray is launched internally):
+Run GRPO (`fixed_delta=0`) and DRRO-GRPO (`fixed_delta>0`) with vLLM rollout (Ray is launched internally):
 
 ```bash
-python drro_train/train_drro_grpo.py --delta 0.0 --output_dir runs/grpo
-python drro_train/train_drro_grpo.py --delta 0.5 --output_dir runs/drro_delta0.5
+python drro_train/train_drro_grpo.py --fixed_delta 0.0 --output_dir runs/grpo
+python drro_train/train_drro_grpo.py --fixed_delta 0.5 --output_dir runs/drro_delta0.5
 ```
+
+DRRO assignment modes:
+
+- `--assign_mode hard`: compute `r_i - delta * p_i`, pick the argmax, give `+delta` only to that winner.
+- `--assign_mode soft`: use the same `r_i - delta * p_i`, then distribute bonus with the softmax/SNIS surrogate.
 
 Run PPO (GAE) instead of GRPO:
 
@@ -38,7 +43,7 @@ python drro_train/train_drro_grpo.py --adv_estimator gae --output_dir runs/ppo
 Use HF rollout instead:
 
 ```bash
-python drro_train/train_drro_grpo.py --rollout_backend hf --delta 0.5 --output_dir runs/drro_hf
+python drro_train/train_drro_grpo.py --rollout_backend hf --fixed_delta 0.5 --output_dir runs/drro_hf
 ```
 
 Enable Weights & Biases logging:
@@ -46,7 +51,7 @@ Enable Weights & Biases logging:
 ```bash
 export WANDB_MODE=online
 export WANDB_ENTITY=your_entity  # optional
-python drro_train/train_drro_grpo.py --delta 0.5 --output_dir runs/drro_delta0.5 --wandb --wandb_project drro-grpo
+python drro_train/train_drro_grpo.py --fixed_delta 0.5 --output_dir runs/drro_delta0.5 --wandb --wandb_project drro-grpo
 ```
 
 Plot the KL curve:

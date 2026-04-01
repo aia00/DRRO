@@ -181,7 +181,10 @@ def main() -> None:
     reward_kwargs = cfg["reward_model"]["reward_kwargs"]
     proxy_rm_name = reward_kwargs["proxy_model"]
     gold_rm_name = reward_kwargs["gold_model"]
-    delta = cfg.get("trainer", {}).get("drro_delta", cfg.get("trainer", {}).get("delta", 0.0))
+    delta = cfg.get("trainer", {}).get(
+        "fixed_delta",
+        cfg.get("trainer", {}).get("drro_delta", cfg.get("trainer", {}).get("delta", 0.0)),
+    )
     beta_kl = cfg.get("trainer", {}).get("drro_beta_kl", 0.0)
 
     dtype = torch.float32

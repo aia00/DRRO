@@ -40,13 +40,14 @@ def main() -> None:
         json.dump(OmegaConf.to_container(config, resolve=True), handle, indent=2, ensure_ascii=True)
 
     enable_drro_grpo(
-        args.delta,
-        delta_alpha=args.delta_alpha,
-        delta_tau=args.delta_tau,
-        delta_softmax_tau=args.delta_softmax_tau,
-        delta_kl_estimator=args.delta_kl_estimator,
-        delta_min=args.delta_min,
-        delta_max=args.delta_max,
+        args.fixed_delta,
+        dynamic_delta_coeff=args.dynamic_delta_coeff,
+        dynamic_kl_window=args.dynamic_kl_window,
+        soft_assign_tau=args.soft_assign_tau,
+        assign_mode=args.assign_mode,
+        dynamic_kl_estimator=args.dynamic_kl_estimator,
+        dynamic_delta_min=args.dynamic_delta_min,
+        dynamic_delta_max=args.dynamic_delta_max,
     )
 
     remote_kwargs = {"num_cpus": 1}

@@ -92,33 +92,55 @@ format_num() {
   awk "BEGIN{printf \"%g\", ${value}}"
 }
 
-DELTA_ALPHA_VAL="${DELTA_ALPHA:-}"
-if [[ -z "${DELTA_ALPHA_VAL}" ]]; then
-  DELTA_ALPHA_VAL="$(extract_cli_value --delta_alpha "${EXTRA_ARGS[@]}" || true)"
+DYNAMIC_DELTA_COEFF_VAL="${DYNAMIC_DELTA_COEFF:-${DELTA_ALPHA:-}}"
+if [[ -z "${DYNAMIC_DELTA_COEFF_VAL}" ]]; then
+  DYNAMIC_DELTA_COEFF_VAL="$(extract_cli_value --dynamic_delta_coeff "${EXTRA_ARGS[@]}" || true)"
 fi
-if [[ -z "${DELTA_ALPHA_VAL}" ]]; then
-  DELTA_ALPHA_VAL="0.0"
+if [[ -z "${DYNAMIC_DELTA_COEFF_VAL}" ]]; then
+  DYNAMIC_DELTA_COEFF_VAL="$(extract_cli_value --delta_alpha "${EXTRA_ARGS[@]}" || true)"
 fi
-
-SOFTMAX_TAU_VAL="${DELTA_SOFTMAX_TAU:-}"
-if [[ -z "${SOFTMAX_TAU_VAL}" ]]; then
-  SOFTMAX_TAU_VAL="$(extract_cli_value --delta_softmax_tau "${EXTRA_ARGS[@]}" || true)"
-fi
-if [[ -z "${SOFTMAX_TAU_VAL}" ]]; then
-  SOFTMAX_TAU_VAL="2.0"
+if [[ -z "${DYNAMIC_DELTA_COEFF_VAL}" ]]; then
+  DYNAMIC_DELTA_COEFF_VAL="0.0"
 fi
 
-ALPHA_TAG="$(format_num "${DELTA_ALPHA_VAL}")"
-TAU_TAG="$(format_num "${SOFTMAX_TAU_VAL}")"
+SOFT_ASSIGN_TAU_VAL="${SOFT_ASSIGN_TAU:-${DELTA_SOFTMAX_TAU:-}}"
+if [[ -z "${SOFT_ASSIGN_TAU_VAL}" ]]; then
+  SOFT_ASSIGN_TAU_VAL="$(extract_cli_value --soft_assign_tau "${EXTRA_ARGS[@]}" || true)"
+fi
+if [[ -z "${SOFT_ASSIGN_TAU_VAL}" ]]; then
+  SOFT_ASSIGN_TAU_VAL="$(extract_cli_value --delta_softmax_tau "${EXTRA_ARGS[@]}" || true)"
+fi
+if [[ -z "${SOFT_ASSIGN_TAU_VAL}" ]]; then
+  SOFT_ASSIGN_TAU_VAL="2.0"
+fi
+
+ASSIGN_MODE_VAL="${ASSIGN_MODE:-}"
+if [[ -z "${ASSIGN_MODE_VAL}" ]]; then
+  ASSIGN_MODE_VAL="$(extract_cli_value --assign_mode "${EXTRA_ARGS[@]}" || true)"
+fi
+if [[ -z "${ASSIGN_MODE_VAL}" ]]; then
+  ASSIGN_MODE_VAL="soft"
+fi
+
+COEFF_TAG="$(format_num "${DYNAMIC_DELTA_COEFF_VAL}")"
+TAU_TAG="$(format_num "${SOFT_ASSIGN_TAU_VAL}")"
 
 build_run_name() {
   local delta_value="$1"
   local delta_tag
   delta_tag="$(format_num "${delta_value}")"
-  if awk "BEGIN{exit !(${DELTA_ALPHA_VAL} > 0)}"; then
-    printf "drro_dynamic_a%s_tau%s_rollout%s" "${ALPHA_TAG}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+  if awk "BEGIN{exit !(${DYNAMIC_DELTA_COEFF_VAL} > 0)}"; then
+    if [[ "${ASSIGN_MODE_VAL}" == "hard" ]]; then
+      printf "drro_dynamic_coeff%s_assign%s_rollout%s" "${COEFF_TAG}" "${ASSIGN_MODE_VAL}" "${NUM_GENERATIONS}"
+    else
+      printf "drro_dynamic_coeff%s_assign%s_tau%s_rollout%s" "${COEFF_TAG}" "${ASSIGN_MODE_VAL}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+    fi
   else
-    printf "drro_fix_delta%s_tau%s_rollout%s" "${delta_tag}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+    if [[ "${ASSIGN_MODE_VAL}" == "hard" ]]; then
+      printf "drro_fixed_delta%s_assign%s_rollout%s" "${delta_tag}" "${ASSIGN_MODE_VAL}" "${NUM_GENERATIONS}"
+    else
+      printf "drro_fixed_delta%s_assign%s_tau%s_rollout%s" "${delta_tag}" "${ASSIGN_MODE_VAL}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+    fi
   fi
 }
 
@@ -184,14 +206,14 @@ if [[ "${ENABLE_WANDB:-0}" == "1" ]]; then
 fi
 
 python train_drro_grpo.py \
-  --delta "${DELTA1}" \
+  --fixed_delta "${DELTA1}" \
   --output_dir "${RUN1_DIR}" \
   "${TRAIN_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
   "${EXTRA_ARGS[@]}"
 
 python train_drro_grpo.py \
-  --delta "${DELTA2}" \
+  --fixed_delta "${DELTA2}" \
   --output_dir "${RUN2_DIR}" \
   "${TRAIN_ARGS[@]}" \
   "${WANDB_ARGS[@]}" \
