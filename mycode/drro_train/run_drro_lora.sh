@@ -159,7 +159,7 @@ TRAIN_ARGS=(
   --proxy_rm "${PROXY_RM}"
   --gold_rm "${GOLD_RM}"
   --num_steps "${NUM_STEPS}"
-  --eval_every 10
+  --eval_every 5
   --save_every 20
   --use_lora
   --lora_r "${LORA_R}"

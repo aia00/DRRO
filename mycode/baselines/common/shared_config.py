@@ -44,7 +44,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "baseline"),
     )
     parser.add_argument("--num_steps", type=int, default=250)
-    parser.add_argument("--eval_every", type=int, default=10)
+    parser.add_argument("--eval_every", type=int, default=5)
     parser.add_argument("--save_every", type=int, default=20)
     parser.add_argument("--eval_prompts", type=int, default=512)
     parser.add_argument(
