@@ -45,7 +45,8 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         self.fixed_delta = fixed_delta
         self.beta_kl = beta_kl
         adv_name = str(self.config.algorithm.adv_estimator)
-        self.method = "ppo" if adv_name == "gae" else "drro_grpo"
+        robust_objective = str(self.config.trainer.get("robust_objective", "drro"))
+        self.method = "ppo" if adv_name == "gae" else f"{robust_objective}_grpo"
         self.reward_norm_proxy: Optional[RewardStats] = None
         self.reward_norm_gold: Optional[RewardStats] = None
 
@@ -176,6 +177,7 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         row["dynamic_kl_window"] = delta_state["dynamic_kl_window"]
         row["soft_assign_tau"] = delta_state["soft_assign_tau"]
         row["assign_mode"] = delta_state["assign_mode"]
+        row["robust_objective"] = delta_state["robust_objective"]
         # Legacy aliases for older plotting code.
         row["delta_runtime"] = delta_state["delta_runtime"]
         row["delta_alpha"] = delta_state["delta_alpha"]

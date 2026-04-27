@@ -170,6 +170,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--robust_objective",
+        type=str,
+        choices=["drro", "dro"],
+        default="drro",
+        help=(
+            "Robust objective used by the delta add-on. "
+            "'drro' keeps the existing r_i - delta * pi_i target with positive add-on; "
+            "'dro' uses delta * pi_i for SNIS and subtracts the add-on."
+        ),
+    )
+    parser.add_argument(
         "--dynamic_kl_estimator",
         "--delta_kl_estimator",
         dest="dynamic_kl_estimator",
@@ -467,6 +478,7 @@ def build_config(
         cfg.trainer["dynamic_kl_window"] = args.dynamic_kl_window
         cfg.trainer["soft_assign_tau"] = args.soft_assign_tau
         cfg.trainer["assign_mode"] = args.assign_mode
+        cfg.trainer["robust_objective"] = args.robust_objective
         cfg.trainer["dynamic_kl_estimator"] = args.dynamic_kl_estimator
         cfg.trainer["dynamic_delta_min"] = args.dynamic_delta_min
         cfg.trainer["dynamic_delta_max"] = args.dynamic_delta_max

@@ -34,6 +34,14 @@ DRRO assignment modes:
 - `--assign_mode hard`: compute `r_i - delta * p_i`, pick the argmax, give `+delta` only to that winner.
 - `--assign_mode soft`: use the same `r_i - delta * p_i`, then distribute bonus with the softmax/SNIS surrogate.
 
+Run the DRO variant from `DRO_RLHF` by switching the robust objective:
+
+```bash
+python drro_train/train_drro_grpo.py --robust_objective dro --fixed_delta 0.5 --output_dir runs/dro_delta0.5
+```
+
+For DRO, the SNIS target uses `delta * p_i` instead of `r_i - delta * p_i`, and the add-on is subtracted from the original reward.
+
 Run PPO (GAE) instead of GRPO:
 
 ```bash

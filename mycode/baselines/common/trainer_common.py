@@ -40,7 +40,7 @@ class BaselineRayPPOTrainer(RayPPOTrainer):
         proxy_eval_key: str = "proxy_score",
         **kwargs,
     ) -> None:
-        super().__init__(*args, reward_fn=reward_fn, val_reward_fn=val_reward_fn, **kwargs)
+        super().__init__(*args, **kwargs)
         self.proxy_reward_fn = reward_fn
         self.gold_reward_fn = val_reward_fn
         self.log_csv_path = log_csv_path
@@ -252,12 +252,12 @@ class BaseBaselineTaskRunner(main_ppo.TaskRunner):
 
         actor_rollout_cls, ray_worker_group_cls = self.add_actor_rollout_worker(config)
         self.add_critic_worker(config)
-        self.add_reward_model_worker(config)
+        self.add_reward_model_resource_pool(config)
         self.add_ref_policy_worker(config, actor_rollout_cls)
 
         validate_config(
             config=config,
-            use_reference_policy=main_ppo.need_reference_policy(self.role_worker_mapping),
+            use_reference_policy=main_ppo.need_reference_policy(config),
             use_critic=main_ppo.need_critic(config),
         )
 

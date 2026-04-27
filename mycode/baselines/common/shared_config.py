@@ -134,6 +134,13 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         ),
     )
     parser.add_argument(
+        "--robust_objective",
+        type=str,
+        choices=["drro", "dro"],
+        default="drro",
+        help="Compatibility knob for DRRO/DRO delta add-on composition.",
+    )
+    parser.add_argument(
         "--dynamic_kl_estimator",
         "--delta_kl_estimator",
         dest="dynamic_kl_estimator",

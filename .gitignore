@@ -38,6 +38,14 @@ runs/
 outputs/
 checkpoints/
 
+# Plotting / analysis scratch files
+mycode/**/plot*.py
+mycode/**/*plot*.ipynb
+
+# Alternative method code kept local
+mycode/bspo/
+mycode/inform_rm/
+
 # Local path config (keep private)
 mycode/project_paths.env
 mycode/*.local.env

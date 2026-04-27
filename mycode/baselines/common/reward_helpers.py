@@ -126,13 +126,21 @@ def to_float_list(values: Iterable[float]) -> List[float]:
 def merge_numeric_lists(storage: Dict[str, List[float]], new_data: Dict[str, object]) -> None:
     for key, value in new_data.items():
         if isinstance(value, np.ndarray):
-            storage.setdefault(key, []).extend([float(v) for v in value.tolist()])
+            if value.ndim == 0:
+                storage.setdefault(key, []).append(float(value.item()))
+            elif value.ndim == 1:
+                storage.setdefault(key, []).extend([float(v) for v in value.tolist()])
             continue
         if torch.is_tensor(value):
-            storage.setdefault(key, []).extend([float(v) for v in value.detach().cpu().tolist()])
+            value_cpu = value.detach().cpu()
+            if value_cpu.ndim == 0:
+                storage.setdefault(key, []).append(float(value_cpu.item()))
+            elif value_cpu.ndim == 1:
+                storage.setdefault(key, []).extend([float(v) for v in value_cpu.tolist()])
             continue
         if isinstance(value, (list, tuple)):
-            storage.setdefault(key, []).extend([float(v) for v in value])
+            if all(not isinstance(v, (list, tuple, np.ndarray)) and not torch.is_tensor(v) for v in value):
+                storage.setdefault(key, []).extend([float(v) for v in value])
             continue
         if value is None:
             continue

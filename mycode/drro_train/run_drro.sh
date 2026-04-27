@@ -126,8 +126,17 @@ if [[ -z "${ASSIGN_MODE_VAL}" ]]; then
   ASSIGN_MODE_VAL="soft"
 fi
 
+ROBUST_OBJECTIVE_VAL="$(extract_cli_value --robust_objective "${EXTRA_ARGS[@]}" || true)"
+if [[ -z "${ROBUST_OBJECTIVE_VAL}" ]]; then
+  ROBUST_OBJECTIVE_VAL="${ROBUST_OBJECTIVE:-}"
+fi
+if [[ -z "${ROBUST_OBJECTIVE_VAL}" ]]; then
+  ROBUST_OBJECTIVE_VAL="drro"
+fi
+
 COEFF_TAG="$(format_num "${DYNAMIC_DELTA_COEFF_VAL}")"
 TAU_TAG="$(format_num "${SOFT_ASSIGN_TAU_VAL}")"
+RUN_PREFIX="${ROBUST_OBJECTIVE_VAL}"
 
 build_run_name() {
   local delta_value="$1"
@@ -135,15 +144,15 @@ build_run_name() {
   delta_tag="$(format_num "${delta_value}")"
   if awk "BEGIN{exit !(${DYNAMIC_DELTA_COEFF_VAL} > 0)}"; then
     if [[ "${ASSIGN_MODE_VAL}" == "hard" ]]; then
-      printf "drro_dynamic_coeff%s_assign%s_rollout%s" "${COEFF_TAG}" "${ASSIGN_MODE_VAL}" "${NUM_GENERATIONS}"
+      printf "%s_dynamic_coeff%s_assign%s_rollout%s" "${RUN_PREFIX}" "${COEFF_TAG}" "${ASSIGN_MODE_VAL}" "${NUM_GENERATIONS}"
     else
-      printf "drro_dynamic_coeff%s_assign%s_tau%s_rollout%s" "${COEFF_TAG}" "${ASSIGN_MODE_VAL}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+      printf "%s_dynamic_coeff%s_assign%s_tau%s_rollout%s" "${RUN_PREFIX}" "${COEFF_TAG}" "${ASSIGN_MODE_VAL}" "${TAU_TAG}" "${NUM_GENERATIONS}"
     fi
   else
     if [[ "${ASSIGN_MODE_VAL}" == "hard" ]]; then
-      printf "drro_fixed_delta%s_assign%s_rollout%s" "${delta_tag}" "${ASSIGN_MODE_VAL}" "${NUM_GENERATIONS}"
+      printf "%s_fixed_delta%s_assign%s_rollout%s" "${RUN_PREFIX}" "${delta_tag}" "${ASSIGN_MODE_VAL}" "${NUM_GENERATIONS}"
     else
-      printf "drro_fixed_delta%s_assign%s_tau%s_rollout%s" "${delta_tag}" "${ASSIGN_MODE_VAL}" "${TAU_TAG}" "${NUM_GENERATIONS}"
+      printf "%s_fixed_delta%s_assign%s_tau%s_rollout%s" "${RUN_PREFIX}" "${delta_tag}" "${ASSIGN_MODE_VAL}" "${TAU_TAG}" "${NUM_GENERATIONS}"
     fi
   fi
 }
@@ -162,6 +171,7 @@ TRAIN_ARGS=(
   --num_steps "${NUM_STEPS}"
   --eval_every 5
   --save_every 20
+  --robust_objective "${ROBUST_OBJECTIVE_VAL}"
 )
 if [[ "${USE_LORA}" == "1" ]]; then
   TRAIN_ARGS+=(--use_lora --lora_r "${LORA_R}" --lora_alpha "${LORA_ALPHA}" --lora_dropout "${LORA_DROPOUT}")

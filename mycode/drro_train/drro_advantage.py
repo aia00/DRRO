@@ -1,8 +1,9 @@
-"""DRRO bonus logic and GRPO advantage patching.
+"""DRRO/DRO bonus logic and GRPO advantage patching.
 
 Assignment modes:
-- hard: compute score_i = r_i - delta * p_i, pick argmax_i(score_i), add +delta only to that winner.
-- soft: use the same score_i = r_i - delta * p_i, then distribute bonus with a softmax/SNIS weighting.
+- DRRO hard: compute score_i = r_i - delta * p_i, pick argmax_i(score_i), add +delta only to that winner.
+- DRRO soft: use the same score_i = r_i - delta * p_i, then distribute bonus with a softmax/SNIS weighting.
+- DRO soft: use delta * p_i for the SNIS target and subtract the resulting add-on from the reward.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ GLOBAL_DYNAMIC_DELTA_MIN = 0.0
 GLOBAL_DYNAMIC_DELTA_MAX = 0.0
 GLOBAL_SOFT_ASSIGN_TAU = 2.0
 GLOBAL_ASSIGN_MODE = "soft"
+GLOBAL_ROBUST_OBJECTIVE = "drro"
 GLOBAL_KL_HISTORY = deque(maxlen=20)
 GLOBAL_LAST_DYNAMIC_KL = 0.0
 GLOBAL_LAST_DYNAMIC_KL_MEAN = 0.0
@@ -48,6 +50,13 @@ def set_assign_mode(assign_mode: str) -> None:
     if assign_mode not in {"soft", "hard"}:
         raise ValueError(f"Unsupported assign_mode: {assign_mode}")
     GLOBAL_ASSIGN_MODE = assign_mode
+
+
+def set_robust_objective(robust_objective: str) -> None:
+    global GLOBAL_ROBUST_OBJECTIVE
+    if robust_objective not in {"drro", "dro"}:
+        raise ValueError(f"Unsupported robust_objective: {robust_objective}")
+    GLOBAL_ROBUST_OBJECTIVE = robust_objective
 
 
 def set_dynamic_delta_config(
@@ -81,6 +90,7 @@ def get_drro_delta_state() -> Dict[str, float]:
         "dynamic_kl_window": float(GLOBAL_DYNAMIC_KL_WINDOW),
         "soft_assign_tau": float(GLOBAL_SOFT_ASSIGN_TAU),
         "assign_mode": GLOBAL_ASSIGN_MODE,
+        "robust_objective": GLOBAL_ROBUST_OBJECTIVE,
         # Legacy aliases for existing log consumers.
         "delta_base": float(GLOBAL_FIXED_DELTA),
         "delta_alpha": float(GLOBAL_DYNAMIC_DELTA_COEFF),
@@ -180,20 +190,24 @@ def apply_drro_bonus(data: DataProto, fixed_delta: float) -> DataProto:
         group_logp = avg_logp[idx_tensor]
         proposal_q = torch.softmax(group_logp, dim=0).clamp(min=1e-12).detach()
 
-        if GLOBAL_ASSIGN_MODE == "hard":
-            # Original winner-take-all DRRO: choose argmax_i(r_i - delta * p_i),
-            # then only that completion receives +delta.
-            winner = torch.argmax(group_scores - effective_delta * proposal_q).item()
-            delta_scores[idx_tensor[winner]] += effective_delta
+        if GLOBAL_ROBUST_OBJECTIVE == "drro":
+            target_scores = group_scores - effective_delta * proposal_q
+            bonus_sign = 1.0
         else:
-            # Soft assignment over the same score r_i - delta * p_i, using the
-            # softmax/SNIS surrogate derived for the smooth max objective.
-            soft_scores = group_scores - effective_delta * proposal_q
-            log_u = (soft_scores / temperature) - torch.log(proposal_q)
+            # DRO smooths max_i delta * pi_i; its policy-gradient add-on has
+            # the opposite sign from DRRO and does not include r_i in the target.
+            target_scores = effective_delta * proposal_q
+            bonus_sign = -1.0
+
+        if GLOBAL_ASSIGN_MODE == "hard":
+            winner = torch.argmax(target_scores).item()
+            delta_scores[idx_tensor[winner]] += bonus_sign * effective_delta
+        else:
+            log_u = (target_scores / temperature) - torch.log(proposal_q)
             weights = torch.softmax(log_u, dim=0).detach()
 
             group_size = float(len(idxs))
-            bonus = (group_size * effective_delta) * (weights * proposal_q)
+            bonus = (bonus_sign * group_size * effective_delta) * (weights * proposal_q)
             bonus = torch.nan_to_num(bonus.detach(), nan=0.0, posinf=0.0, neginf=0.0)
             delta_scores[idx_tensor] += bonus
 
@@ -241,6 +255,7 @@ def enable_drro_grpo(
     dynamic_kl_window: int = 20,
     soft_assign_tau: float = 2.0,
     assign_mode: str = "soft",
+    robust_objective: str = "drro",
     dynamic_kl_estimator: str = "k3",
     dynamic_delta_min: float = 0.0,
     dynamic_delta_max: float = 0.0,
@@ -248,6 +263,7 @@ def enable_drro_grpo(
     set_fixed_delta(fixed_delta)
     set_soft_assign_tau(soft_assign_tau)
     set_assign_mode(assign_mode)
+    set_robust_objective(robust_objective)
     set_dynamic_delta_config(
         dynamic_delta_coeff=dynamic_delta_coeff,
         dynamic_kl_window=dynamic_kl_window,

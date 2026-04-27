@@ -45,6 +45,7 @@ def main() -> None:
         dynamic_kl_window=args.dynamic_kl_window,
         soft_assign_tau=args.soft_assign_tau,
         assign_mode=args.assign_mode,
+        robust_objective=args.robust_objective,
         dynamic_kl_estimator=args.dynamic_kl_estimator,
         dynamic_delta_min=args.dynamic_delta_min,
         dynamic_delta_max=args.dynamic_delta_max,

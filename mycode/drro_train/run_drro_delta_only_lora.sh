@@ -124,22 +124,31 @@ if [[ -z "${ASSIGN_MODE_VAL}" ]]; then
   ASSIGN_MODE_VAL="soft"
 fi
 
+ROBUST_OBJECTIVE_VAL="$(extract_cli_value --robust_objective "${EXTRA_ARGS[@]}" || true)"
+if [[ -z "${ROBUST_OBJECTIVE_VAL}" ]]; then
+  ROBUST_OBJECTIVE_VAL="${ROBUST_OBJECTIVE:-}"
+fi
+if [[ -z "${ROBUST_OBJECTIVE_VAL}" ]]; then
+  ROBUST_OBJECTIVE_VAL="drro"
+fi
+
 DELTA_TAG="$(format_num "${DELTA2}")"
 COEFF_TAG="$(format_num "${DYNAMIC_DELTA_COEFF_VAL}")"
 TAU_TAG="$(format_num "${SOFT_ASSIGN_TAU_VAL}")"
 ASSIGN_TAG="${ASSIGN_MODE_VAL}"
+RUN_PREFIX="${ROBUST_OBJECTIVE_VAL}"
 
 if awk "BEGIN{exit !(${DYNAMIC_DELTA_COEFF_VAL} > 0)}"; then
   if [[ "${ASSIGN_MODE_VAL}" == "hard" ]]; then
-    RUN_NAME="drro_dynamic_coeff${COEFF_TAG}_assign${ASSIGN_TAG}_rollout${NUM_GENERATIONS}"
+    RUN_NAME="${RUN_PREFIX}_dynamic_coeff${COEFF_TAG}_assign${ASSIGN_TAG}_rollout${NUM_GENERATIONS}"
   else
-    RUN_NAME="drro_dynamic_coeff${COEFF_TAG}_assign${ASSIGN_TAG}_tau${TAU_TAG}_rollout${NUM_GENERATIONS}"
+    RUN_NAME="${RUN_PREFIX}_dynamic_coeff${COEFF_TAG}_assign${ASSIGN_TAG}_tau${TAU_TAG}_rollout${NUM_GENERATIONS}"
   fi
 else
   if [[ "${ASSIGN_MODE_VAL}" == "hard" ]]; then
-    RUN_NAME="drro_fixed_delta${DELTA_TAG}_assign${ASSIGN_TAG}_rollout${NUM_GENERATIONS}"
+    RUN_NAME="${RUN_PREFIX}_fixed_delta${DELTA_TAG}_assign${ASSIGN_TAG}_rollout${NUM_GENERATIONS}"
   else
-    RUN_NAME="drro_fixed_delta${DELTA_TAG}_assign${ASSIGN_TAG}_tau${TAU_TAG}_rollout${NUM_GENERATIONS}"
+    RUN_NAME="${RUN_PREFIX}_fixed_delta${DELTA_TAG}_assign${ASSIGN_TAG}_tau${TAU_TAG}_rollout${NUM_GENERATIONS}"
   fi
 fi
 
@@ -156,6 +165,7 @@ TRAIN_ARGS=(
   --num_steps "${NUM_STEPS}"
   --eval_every 5
   --save_every 20
+  --robust_objective "${ROBUST_OBJECTIVE_VAL}"
   --use_lora
   --lora_r "${LORA_R}"
   --lora_alpha "${LORA_ALPHA}"
