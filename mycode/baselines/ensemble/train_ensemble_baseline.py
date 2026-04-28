@@ -34,7 +34,7 @@ from drro_train.drro_reward import HFRewardManager
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train ensemble proxy-RM baseline.")
-    add_common_training_args(parser, adv_default="gae")
+    add_common_training_args(parser, adv_default="grpo")
 
     parser.add_argument("--proxy_rm_list", type=str, default="", help="Comma-separated proxy RM paths.")
     parser.add_argument("--proxy_rm_manifest", type=str, default="", help="JSON manifest with proxy RM member paths.")

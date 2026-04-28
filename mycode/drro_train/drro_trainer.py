@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import os
 import uuid
+from copy import deepcopy
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -21,7 +22,7 @@ from verl.utils.config import validate_config
 from verl.utils.fs import copy_to_local
 from verl.workers.reward_manager.abstract import AbstractRewardManager
 
-from drro_advantage import get_drro_delta_state
+from drro_advantage import get_drro_delta_state, restore_dynamic_delta_state, set_dynamic_delta_state_path
 from drro_reward import HFRewardManager, RewardStats
 
 
@@ -46,7 +47,14 @@ class DRRORayPPOTrainer(RayPPOTrainer):
         self.beta_kl = beta_kl
         adv_name = str(self.config.algorithm.adv_estimator)
         robust_objective = str(self.config.trainer.get("robust_objective", "drro"))
-        self.method = "ppo" if adv_name == "gae" else f"{robust_objective}_grpo"
+        dynamic_delta_coeff = float(self.config.trainer.get("dynamic_delta_coeff", 0.0) or 0.0)
+        has_delta = fixed_delta > 0 or dynamic_delta_coeff > 0
+        if adv_name == "gae":
+            self.method = "ppo"
+        elif has_delta:
+            self.method = f"{robust_objective}_grpo"
+        else:
+            self.method = "grpo"
         self.reward_norm_proxy: Optional[RewardStats] = None
         self.reward_norm_gold: Optional[RewardStats] = None
 
@@ -130,7 +138,14 @@ class DRRORayPPOTrainer(RayPPOTrainer):
                 kl_seq_count += kl_seq.numel()
 
             proxy_result = self.proxy_reward_fn(test_batch, return_dict=True)
-            gold_result = self.gold_reward_fn(test_batch, return_dict=True)
+
+            # Validation batches can already contain proxy rm_scores produced by the
+            # training reward loop. Remove them before gold evaluation so gold is
+            # always recomputed with the held-out reward model.
+            gold_eval_batch = deepcopy(test_batch)
+            if "rm_scores" in gold_eval_batch.batch.keys():
+                gold_eval_batch.pop(batch_keys=["rm_scores"])
+            gold_result = self.gold_reward_fn(gold_eval_batch, return_dict=True)
             proxy_reward = proxy_result["reward_tensor"].sum(dim=-1).cpu().tolist()
             gold_reward = gold_result["reward_tensor"].sum(dim=-1).cpu().tolist()
             proxy_scores.extend(proxy_reward)
@@ -149,7 +164,7 @@ class DRRORayPPOTrainer(RayPPOTrainer):
 
         recalibrate = bool(self.config.trainer.get("recalibrate_for_plot", True))
         if recalibrate:
-            proxy_norm = (proxy_mean - self.reward_norm_proxy.mean) / (self.reward_norm_proxy.std + 1e-8)
+            proxy_norm = proxy_mean - self.reward_norm_proxy.mean
             gold_norm = (gold_mean - self.reward_norm_gold.mean) / (self.reward_norm_gold.std + 1e-8)
         else:
             proxy_norm = proxy_mean
@@ -164,10 +179,13 @@ class DRRORayPPOTrainer(RayPPOTrainer):
             "kl": kl_mean,
             "kl_per_token": kl_mean,
             "kl_seq": kl_seq_mean,
+            "proxy_raw": proxy_mean,
+            "gold_raw": gold_mean,
             "proxy_score": proxy_mean,
             "gold_score": gold_mean,
             "proxy_score_norm": proxy_norm,
             "gold_score_norm": gold_norm,
+            "reward_recalibrated_for_plot": int(recalibrate),
         }
         delta_state = get_drro_delta_state()
         row["effective_delta"] = delta_state["effective_delta"]
@@ -204,6 +222,11 @@ class DrroTaskRunner(main_ppo.TaskRunner):
         print("TaskRunner started")
         pprint(OmegaConf.to_container(config, resolve=True))
         OmegaConf.resolve(config)
+        reward_visible = str(config.trainer.get("reward_cuda_visible_devices", "") or "")
+        if reward_visible:
+            # This deliberately lets reward inference share a GPU with training.
+            os.environ["CUDA_VISIBLE_DEVICES"] = reward_visible
+            print(f"Reward process CUDA_VISIBLE_DEVICES={reward_visible}")
 
         actor_rollout_cls, ray_worker_group_cls = self.add_actor_rollout_worker(config)
         self.add_critic_worker(config)
@@ -303,4 +326,9 @@ class DrroTaskRunner(main_ppo.TaskRunner):
             train_sampler=train_sampler,
         )
         trainer.init_workers()
+        dynamic_state_path = config.trainer.get("dynamic_delta_state_path", None)
+        set_dynamic_delta_state_path(dynamic_state_path)
+        if float(config.trainer.get("dynamic_delta_coeff", 0.0) or 0.0) > 0:
+            restored = restore_dynamic_delta_state(dynamic_state_path)
+            print(f"Dynamic delta state restored: {restored} ({dynamic_state_path})")
         trainer.fit()

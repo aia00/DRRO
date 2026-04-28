@@ -45,11 +45,18 @@ if [[ -z "${REWARD_GPUS}" ]]; then
     REWARD_GPUS=0
   fi
 fi
+SHARE_REWARD_GPU="${SHARE_REWARD_GPU:-0}"
+REWARD_CUDA_VISIBLE_DEVICES="${REWARD_CUDA_VISIBLE_DEVICES:-}"
+if [[ "${SHARE_REWARD_GPU}" == "1" ]]; then
+  REWARD_GPUS=0
+  FIRST_VISIBLE_GPU="${CUDA_VISIBLE_DEVICES%%,*}"
+  REWARD_CUDA_VISIBLE_DEVICES="${REWARD_CUDA_VISIBLE_DEVICES:-${FIRST_VISIBLE_GPU:-0}}"
+fi
 DELTA1="${DELTA1:-0.0}"
 DELTA2="${DELTA2:-}"
 ROLLOUT_BACKEND="${ROLLOUT_BACKEND:-vllm}"
 VLLM_TP="${VLLM_TP:-0}"
-VLLM_GPU_MEM="${VLLM_GPU_MEM:-0.7}"
+VLLM_GPU_MEM="${VLLM_GPU_MEM:-0.70}"
 VLLM_MAX_BATCHED_TOKENS="${VLLM_MAX_BATCHED_TOKENS:-16384}"
 VLLM_MAX_SEQS="${VLLM_MAX_SEQS:-1536}"
 NUM_GENERATIONS="${NUM_GENERATIONS:-16}"
@@ -57,11 +64,13 @@ MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"
 POLICY_MODEL="${POLICY_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 PROXY_RM="${PROXY_RM:-OpenAssistant/reward-model-deberta-v3-base}"
 GOLD_RM="${GOLD_RM:-sileod/deberta-v3-large-tasksource-rlhf-reward-model}"
-NUM_STEPS="${NUM_STEPS:-250}"
+NUM_STEPS="${NUM_STEPS:-300}"
 USE_LORA="${USE_LORA:-1}"
 LORA_R="${LORA_R:-8}"
 LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
+ACTOR_MICRO_BATCH="${ACTOR_MICRO_BATCH:-8}"
+LOGPROB_MICRO_BATCH="${LOGPROB_MICRO_BATCH:-8}"
 if [[ -z "${DELTA2}" ]]; then
   DELTA2="$(awk "BEGIN{printf \"%.6f\", ${NUM_GENERATIONS}*2.5}")"
 fi
@@ -169,6 +178,8 @@ TRAIN_ARGS=(
   --proxy_rm "${PROXY_RM}"
   --gold_rm "${GOLD_RM}"
   --num_steps "${NUM_STEPS}"
+  --actor_micro_batch_size_per_gpu "${ACTOR_MICRO_BATCH}"
+  --logprob_micro_batch_size_per_gpu "${LOGPROB_MICRO_BATCH}"
   --eval_every 5
   --save_every 20
   --robust_objective "${ROBUST_OBJECTIVE_VAL}"
@@ -180,6 +191,9 @@ else
 fi
 if [[ -n "${REWARD_GPUS}" ]]; then
   TRAIN_ARGS+=(--reward_gpus "${REWARD_GPUS}")
+fi
+if [[ -n "${REWARD_CUDA_VISIBLE_DEVICES}" ]]; then
+  TRAIN_ARGS+=(--reward_cuda_visible_devices "${REWARD_CUDA_VISIBLE_DEVICES}")
 fi
 if [[ "${ROLLOUT_BACKEND}" == "vllm" ]]; then
   TRAIN_ARGS+=(

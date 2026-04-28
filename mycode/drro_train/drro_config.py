@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "exp1"),
     )
-    parser.add_argument("--num_steps", type=int, default=250)
+    parser.add_argument("--num_steps", type=int, default=300)
     parser.add_argument("--eval_every", type=int, default=5)
     parser.add_argument("--save_every", type=int, default=20)
     parser.add_argument("--eval_prompts", type=int, default=512)
@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Validation batch size (0 = use --batch_size_prompts).",
     )
-    parser.add_argument("--batch_size_prompts", type=int, default=12)
+    parser.add_argument("--batch_size_prompts", type=int, default=16)
     parser.add_argument("--num_generations", type=int, default=16)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--max_prompt_tokens", type=int, default=512)
@@ -80,7 +80,7 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Tensor parallel size for vLLM. Set 0 for auto (default).",
     )
-    parser.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.7)
+    parser.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.70)
     parser.add_argument("--vllm_max_num_batched_tokens", type=int, default=16384)
     parser.add_argument("--vllm_max_num_seqs", type=int, default=1536)
     parser.add_argument("--vllm_max_model_len", type=int, default=0)
@@ -115,6 +115,8 @@ def parse_args() -> argparse.Namespace:
         help="Attention backend for the policy model.",
     )
     parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--actor_micro_batch_size_per_gpu", type=int, default=8)
+    parser.add_argument("--logprob_micro_batch_size_per_gpu", type=int, default=8)
     parser.add_argument("--clip_eps", type=float, default=0.2)
     parser.add_argument("--beta_kl", type=float, default=0.0)
     parser.add_argument(
@@ -217,6 +219,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataloader_num_workers", type=int, default=0)
     parser.add_argument("--reward_batch_size", type=int, default=16)
     parser.add_argument("--reward_max_length", type=int, default=512)
+    parser.add_argument(
+        "--reward_cuda_visible_devices",
+        type=str,
+        default="",
+        help="If set, override CUDA_VISIBLE_DEVICES inside the reward/task-runner process. Useful for sharing a training GPU with reward inference.",
+    )
     parser.add_argument("--bf16", action="store_true")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--use_lora", action="store_true", default=True)
@@ -376,9 +384,9 @@ def build_config(
             f"actor_rollout_ref.rollout.top_p={args.top_p}",
             f"actor_rollout_ref.rollout.response_length={args.max_new_tokens}",
             f"actor_rollout_ref.rollout.prompt_length={args.max_prompt_tokens}",
-            "actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1",
-            "actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=1",
-            "actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1",
+            f"actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu={args.logprob_micro_batch_size_per_gpu}",
+            f"actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu={args.logprob_micro_batch_size_per_gpu}",
+            f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu={args.actor_micro_batch_size_per_gpu}",
             f"actor_rollout_ref.actor.ppo_mini_batch_size={args.batch_size_prompts}",
             f"actor_rollout_ref.actor.clip_ratio={args.clip_eps}",
             f"actor_rollout_ref.actor.optim.lr={args.lr}",
@@ -482,6 +490,8 @@ def build_config(
         cfg.trainer["dynamic_kl_estimator"] = args.dynamic_kl_estimator
         cfg.trainer["dynamic_delta_min"] = args.dynamic_delta_min
         cfg.trainer["dynamic_delta_max"] = args.dynamic_delta_max
+        cfg.trainer["dynamic_delta_state_path"] = os.path.join(args.output_dir, "dynamic_delta_state.json")
+        cfg.trainer["reward_cuda_visible_devices"] = args.reward_cuda_visible_devices
         # Legacy keys kept for backward compatibility with old logs/eval scripts.
         cfg.trainer["drro_delta"] = args.delta
         cfg.trainer["drro_delta_alpha"] = args.delta_alpha

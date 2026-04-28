@@ -43,12 +43,23 @@ if [[ -z "${REWARD_GPUS}" ]]; then
     REWARD_GPUS=0
   fi
 fi
+SHARE_REWARD_GPU="${SHARE_REWARD_GPU:-0}"
+REWARD_CUDA_VISIBLE_DEVICES="${REWARD_CUDA_VISIBLE_DEVICES:-}"
+if [[ "${SHARE_REWARD_GPU}" == "1" ]]; then
+  REWARD_GPUS=0
+  FIRST_VISIBLE_GPU="${CUDA_VISIBLE_DEVICES%%,*}"
+  REWARD_CUDA_VISIBLE_DEVICES="${REWARD_CUDA_VISIBLE_DEVICES:-${FIRST_VISIBLE_GPU:-0}}"
+fi
 
-NUM_STEPS="${NUM_STEPS:-250}"
+
+NUM_STEPS="${NUM_STEPS:-300}"
 NUM_GENERATIONS="${NUM_GENERATIONS:-16}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-128}"
+ACTOR_MICRO_BATCH="${ACTOR_MICRO_BATCH:-8}"
+LOGPROB_MICRO_BATCH="${LOGPROB_MICRO_BATCH:-8}"
 ENSEMBLE_AGG="${ENSEMBLE_AGG:-uwo}"
 UWO_LAMBDA="${UWO_LAMBDA:-1.0}"
+ADV_ESTIMATOR="${ADV_ESTIMATOR:-grpo}"
 POLICY_MODEL="${POLICY_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 GOLD_RM="${GOLD_RM:-sileod/deberta-v3-large-tasksource-rlhf-reward-model}"
 PROXY_RM="${PROXY_RM:-OpenAssistant/reward-model-deberta-v3-base}"
@@ -83,6 +94,9 @@ CMD=(
   --num_steps "${NUM_STEPS}"
   --num_generations "${NUM_GENERATIONS}"
   --max_new_tokens "${MAX_NEW_TOKENS}"
+  --actor_micro_batch_size_per_gpu "${ACTOR_MICRO_BATCH}"
+  --logprob_micro_batch_size_per_gpu "${LOGPROB_MICRO_BATCH}"
+  --adv_estimator "${ADV_ESTIMATOR}"
   --use_lora
 )
 
@@ -90,6 +104,10 @@ if [[ -n "${PROXY_RM_MANIFEST}" ]]; then
   CMD+=(--proxy_rm_manifest "${PROXY_RM_MANIFEST}")
 elif [[ -n "${PROXY_RM_LIST}" ]]; then
   CMD+=(--proxy_rm_list "${PROXY_RM_LIST}")
+fi
+
+if [[ -n "${REWARD_CUDA_VISIBLE_DEVICES}" ]]; then
+  CMD+=(--reward_cuda_visible_devices "${REWARD_CUDA_VISIBLE_DEVICES}")
 fi
 
 if [[ "${ENABLE_WANDB:-0}" == "1" ]]; then

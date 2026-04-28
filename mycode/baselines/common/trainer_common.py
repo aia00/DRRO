@@ -6,6 +6,7 @@ import csv
 import os
 import uuid
 from collections import defaultdict
+from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -171,7 +172,14 @@ class BaselineRayPPOTrainer(RayPPOTrainer):
                 kl_seq_count += kl_seq.numel()
 
             proxy_result = self.proxy_reward_fn(test_batch, return_dict=True)
-            gold_result = self.gold_reward_fn(test_batch, return_dict=True)
+
+            # Validation batches may already carry cached training rm_scores.
+            # Drop them before held-out gold evaluation so gold is recomputed
+            # instead of aliasing the proxy/training reward.
+            gold_eval_batch = deepcopy(test_batch)
+            if "rm_scores" in gold_eval_batch.batch.keys():
+                gold_eval_batch.pop(batch_keys=["rm_scores"])
+            gold_result = self.gold_reward_fn(gold_eval_batch, return_dict=True)
 
             proxy_scores.extend(self._extract_proxy_scores(proxy_result))
             gold_reward = gold_result["reward_tensor"].sum(dim=-1).detach().cpu().tolist()
@@ -249,6 +257,11 @@ class BaseBaselineTaskRunner(main_ppo.TaskRunner):
         print("TaskRunner started")
         pprint(OmegaConf.to_container(config, resolve=True))
         OmegaConf.resolve(config)
+        reward_visible = str(config.trainer.get("reward_cuda_visible_devices", "") or "")
+        if reward_visible:
+            # This deliberately lets reward inference share a GPU with training.
+            os.environ["CUDA_VISIBLE_DEVICES"] = reward_visible
+            print(f"Reward process CUDA_VISIBLE_DEVICES={reward_visible}")
 
         actor_rollout_cls, ray_worker_group_cls = self.add_actor_rollout_worker(config)
         self.add_critic_worker(config)

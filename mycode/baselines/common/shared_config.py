@@ -43,7 +43,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         type=str,
         default=os.path.join(PATH_CFG.get("DRRO_OUTPUT_ROOT", "runs"), "baseline"),
     )
-    parser.add_argument("--num_steps", type=int, default=250)
+    parser.add_argument("--num_steps", type=int, default=300)
     parser.add_argument("--eval_every", type=int, default=5)
     parser.add_argument("--save_every", type=int, default=20)
     parser.add_argument("--eval_prompts", type=int, default=512)
@@ -53,7 +53,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         default=0,
         help="Validation batch size (0 = use --batch_size_prompts).",
     )
-    parser.add_argument("--batch_size_prompts", type=int, default=12)
+    parser.add_argument("--batch_size_prompts", type=int, default=16)
     parser.add_argument("--num_generations", type=int, default=16)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--max_prompt_tokens", type=int, default=512)
@@ -73,7 +73,7 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         default=0,
         help="Tensor parallel size for vLLM. Set 0 for auto.",
     )
-    parser.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.7)
+    parser.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.70)
     parser.add_argument("--vllm_max_num_batched_tokens", type=int, default=16384)
     parser.add_argument("--vllm_max_num_seqs", type=int, default=1536)
     parser.add_argument("--vllm_max_model_len", type=int, default=0)
@@ -105,6 +105,8 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
         help="Attention backend for the policy model.",
     )
     parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--actor_micro_batch_size_per_gpu", type=int, default=8)
+    parser.add_argument("--logprob_micro_batch_size_per_gpu", type=int, default=8)
     parser.add_argument("--clip_eps", type=float, default=0.2)
     parser.add_argument("--beta_kl", type=float, default=0.0)
     parser.add_argument(
@@ -163,6 +165,12 @@ def add_common_training_args(parser: argparse.ArgumentParser, adv_default: str =
     parser.add_argument("--dataloader_num_workers", type=int, default=0)
     parser.add_argument("--reward_batch_size", type=int, default=16)
     parser.add_argument("--reward_max_length", type=int, default=512)
+    parser.add_argument(
+        "--reward_cuda_visible_devices",
+        type=str,
+        default="",
+        help="If set, override CUDA_VISIBLE_DEVICES inside the reward/task-runner process. Useful for sharing a training GPU with reward inference.",
+    )
 
     parser.add_argument("--bf16", action="store_true")
     parser.add_argument("--fp16", action="store_true")
@@ -235,6 +243,7 @@ def compose_verl_config(
         cfg.trainer["log_csv_path"] = os.path.join(args.output_dir, "log.csv")
         cfg.trainer["baseline_method"] = method_name
         cfg.trainer["drro_beta_kl"] = 0.0
+        cfg.trainer["reward_cuda_visible_devices"] = args.reward_cuda_visible_devices
 
     if method_kwargs:
         with open_dict(cfg.trainer):

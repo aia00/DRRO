@@ -8,6 +8,8 @@ Assignment modes:
 
 from __future__ import annotations
 
+import json
+import os
 from collections import deque
 from typing import Dict
 
@@ -32,6 +34,7 @@ GLOBAL_KL_HISTORY = deque(maxlen=20)
 GLOBAL_LAST_DYNAMIC_KL = 0.0
 GLOBAL_LAST_DYNAMIC_KL_MEAN = 0.0
 GLOBAL_LAST_EFFECTIVE_DELTA = 0.0
+GLOBAL_DYNAMIC_DELTA_STATE_PATH = ""
 ORIG_COMPUTE_ADV = verl_ray_trainer.compute_advantage
 
 
@@ -78,6 +81,76 @@ def set_dynamic_delta_config(
     GLOBAL_LAST_DYNAMIC_KL = 0.0
     GLOBAL_LAST_DYNAMIC_KL_MEAN = 0.0
     GLOBAL_LAST_EFFECTIVE_DELTA = GLOBAL_FIXED_DELTA
+
+
+def set_dynamic_delta_state_path(path: str | None) -> None:
+    global GLOBAL_DYNAMIC_DELTA_STATE_PATH
+    GLOBAL_DYNAMIC_DELTA_STATE_PATH = path or ""
+
+
+def _clamp_effective_delta(value: float) -> float:
+    if GLOBAL_DYNAMIC_DELTA_MIN > 0:
+        value = max(value, GLOBAL_DYNAMIC_DELTA_MIN)
+    if GLOBAL_DYNAMIC_DELTA_MAX > 0:
+        value = min(value, GLOBAL_DYNAMIC_DELTA_MAX)
+    return float(value)
+
+
+def _state_payload() -> Dict[str, object]:
+    return {
+        "fixed_delta": float(GLOBAL_FIXED_DELTA),
+        "dynamic_delta_coeff": float(GLOBAL_DYNAMIC_DELTA_COEFF),
+        "dynamic_kl_window": int(GLOBAL_DYNAMIC_KL_WINDOW),
+        "dynamic_kl_estimator": GLOBAL_DYNAMIC_KL_ESTIMATOR,
+        "dynamic_delta_min": float(GLOBAL_DYNAMIC_DELTA_MIN),
+        "dynamic_delta_max": float(GLOBAL_DYNAMIC_DELTA_MAX),
+        "kl_history": [float(value) for value in GLOBAL_KL_HISTORY],
+        "dynamic_kl_last": float(GLOBAL_LAST_DYNAMIC_KL),
+        "dynamic_kl_mean": float(GLOBAL_LAST_DYNAMIC_KL_MEAN),
+        "effective_delta": float(GLOBAL_LAST_EFFECTIVE_DELTA),
+    }
+
+
+def save_dynamic_delta_state() -> None:
+    if not GLOBAL_DYNAMIC_DELTA_STATE_PATH or GLOBAL_DYNAMIC_DELTA_COEFF <= 0:
+        return
+    state_dir = os.path.dirname(GLOBAL_DYNAMIC_DELTA_STATE_PATH)
+    if state_dir:
+        os.makedirs(state_dir, exist_ok=True)
+    tmp_path = f"{GLOBAL_DYNAMIC_DELTA_STATE_PATH}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(_state_payload(), handle, indent=2, ensure_ascii=True)
+    os.replace(tmp_path, GLOBAL_DYNAMIC_DELTA_STATE_PATH)
+
+
+def restore_dynamic_delta_state(path: str | None = None) -> bool:
+    global GLOBAL_KL_HISTORY, GLOBAL_LAST_DYNAMIC_KL, GLOBAL_LAST_DYNAMIC_KL_MEAN, GLOBAL_LAST_EFFECTIVE_DELTA
+    state_path = path or GLOBAL_DYNAMIC_DELTA_STATE_PATH
+    if not state_path or not os.path.isfile(state_path):
+        return False
+    with open(state_path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    history_raw = payload.get("kl_history", [])
+    if not isinstance(history_raw, (list, tuple)):
+        return False
+    values = []
+    for value in history_raw:
+        try:
+            values.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    GLOBAL_KL_HISTORY = deque(values[-GLOBAL_DYNAMIC_KL_WINDOW:], maxlen=GLOBAL_DYNAMIC_KL_WINDOW)
+    if GLOBAL_KL_HISTORY:
+        GLOBAL_LAST_DYNAMIC_KL = float(GLOBAL_KL_HISTORY[-1])
+        GLOBAL_LAST_DYNAMIC_KL_MEAN = float(np.mean(GLOBAL_KL_HISTORY))
+        GLOBAL_LAST_EFFECTIVE_DELTA = _clamp_effective_delta(
+            GLOBAL_DYNAMIC_DELTA_COEFF * GLOBAL_LAST_DYNAMIC_KL_MEAN
+        )
+    else:
+        GLOBAL_LAST_DYNAMIC_KL = float(payload.get("dynamic_kl_last", 0.0) or 0.0)
+        GLOBAL_LAST_DYNAMIC_KL_MEAN = float(payload.get("dynamic_kl_mean", 0.0) or 0.0)
+        GLOBAL_LAST_EFFECTIVE_DELTA = float(payload.get("effective_delta", GLOBAL_FIXED_DELTA) or GLOBAL_FIXED_DELTA)
+    return True
 
 
 def get_drro_delta_state() -> Dict[str, float]:
@@ -145,12 +218,9 @@ def _resolve_effective_delta(
     dynamic_kl_mean = float(np.mean(GLOBAL_KL_HISTORY))
     GLOBAL_LAST_DYNAMIC_KL_MEAN = dynamic_kl_mean
 
-    effective_delta = GLOBAL_DYNAMIC_DELTA_COEFF * dynamic_kl_mean
-    if GLOBAL_DYNAMIC_DELTA_MIN > 0:
-        effective_delta = max(effective_delta, GLOBAL_DYNAMIC_DELTA_MIN)
-    if GLOBAL_DYNAMIC_DELTA_MAX > 0:
-        effective_delta = min(effective_delta, GLOBAL_DYNAMIC_DELTA_MAX)
+    effective_delta = _clamp_effective_delta(GLOBAL_DYNAMIC_DELTA_COEFF * dynamic_kl_mean)
     GLOBAL_LAST_EFFECTIVE_DELTA = float(effective_delta)
+    save_dynamic_delta_state()
     return float(effective_delta)
 
 
