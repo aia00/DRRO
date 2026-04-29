@@ -59,6 +59,8 @@ ACTOR_MICRO_BATCH="${ACTOR_MICRO_BATCH:-8}"
 LOGPROB_MICRO_BATCH="${LOGPROB_MICRO_BATCH:-8}"
 ENSEMBLE_AGG="${ENSEMBLE_AGG:-uwo}"
 UWO_LAMBDA="${UWO_LAMBDA:-1.0}"
+ENSEMBLE_CALIBRATION="${ENSEMBLE_CALIBRATION:-1}"
+ALLOW_SINGLE_ENSEMBLE="${ALLOW_SINGLE_ENSEMBLE:-0}"
 ADV_ESTIMATOR="${ADV_ESTIMATOR:-grpo}"
 POLICY_MODEL="${POLICY_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 GOLD_RM="${GOLD_RM:-sileod/deberta-v3-large-tasksource-rlhf-reward-model}"
@@ -69,6 +71,21 @@ PROXY_RM_MANIFEST="${PROXY_RM_MANIFEST:-}"
 if [[ -n "${PROXY_RM_LIST}" ]]; then
   IFS=',' read -r -a MODELS <<< "${PROXY_RM_LIST}"
   NUM_ENSEMBLE="${#MODELS[@]}"
+elif [[ -n "${PROXY_RM_MANIFEST}" && -f "${PROXY_RM_MANIFEST}" ]]; then
+  NUM_ENSEMBLE="$(
+    python - "${PROXY_RM_MANIFEST}" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    payload = json.load(handle)
+if isinstance(payload.get("models"), list):
+    print(len(payload["models"]))
+elif isinstance(payload.get("members"), list):
+    print(len(payload["members"]))
+else:
+    print(0)
+PY
+  )"
 else
   NUM_ENSEMBLE="${NUM_ENSEMBLE:-1}"
 fi
@@ -104,6 +121,14 @@ if [[ -n "${PROXY_RM_MANIFEST}" ]]; then
   CMD+=(--proxy_rm_manifest "${PROXY_RM_MANIFEST}")
 elif [[ -n "${PROXY_RM_LIST}" ]]; then
   CMD+=(--proxy_rm_list "${PROXY_RM_LIST}")
+fi
+
+if [[ "${ENSEMBLE_CALIBRATION}" != "1" ]]; then
+  CMD+=(--no_ensemble_calibration)
+fi
+
+if [[ "${ALLOW_SINGLE_ENSEMBLE}" == "1" ]]; then
+  CMD+=(--allow_single_ensemble)
 fi
 
 if [[ -n "${REWARD_CUDA_VISIBLE_DEVICES}" ]]; then

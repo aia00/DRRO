@@ -46,6 +46,18 @@ def parse_args() -> argparse.Namespace:
         help="Aggregation for ensemble reward.",
     )
     parser.add_argument("--uwo_lambda", type=float, default=1.0, help="Variance penalty for UWO aggregation.")
+    parser.add_argument(
+        "--no_ensemble_calibration",
+        action="store_false",
+        dest="ensemble_calibration",
+        default=True,
+        help="Disable per-member z-score calibration before ensemble aggregation.",
+    )
+    parser.add_argument(
+        "--allow_single_ensemble",
+        action="store_true",
+        help="Allow a one-model 'ensemble' for debugging. Disabled by default to avoid accidental UWO=mean runs.",
+    )
 
     args = parser.parse_args()
     return finalize_common_args(args)
@@ -93,6 +105,8 @@ class EnsembleTaskRunner(BaseBaselineTaskRunner):
             batch_size=int(reward_kwargs.get("reward_batch_size", 16)),
             max_length=int(reward_kwargs.get("reward_max_length", 512)),
             dtype=reward_dtype,
+            calibrate_scores=bool(config.trainer.get("ensemble_calibration", True)),
+            allow_single_model=bool(config.trainer.get("allow_single_ensemble", False)),
         )
         gold_reward_fn = HFRewardManager(
             tokenizer=tokenizer,
@@ -111,6 +125,12 @@ def main() -> None:
     set_seed(args.seed)
 
     ensemble_models = resolve_ensemble_models(args)
+    if len(ensemble_models) < 2 and not args.allow_single_ensemble:
+        raise ValueError(
+            "Ensemble baseline resolved fewer than two proxy RMs. "
+            "Use --proxy_rm_list/--proxy_rm_manifest for a real ensemble, "
+            "or pass --allow_single_ensemble only for debugging."
+        )
     args.proxy_rm = ensemble_models[0]
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -128,14 +148,32 @@ def main() -> None:
         method_kwargs={
             "ensemble_agg": args.ensemble_agg,
             "uwo_lambda": args.uwo_lambda,
+            "ensemble_calibration": bool(args.ensemble_calibration),
+            "allow_single_ensemble": bool(args.allow_single_ensemble),
             "proxy_eval_key": "proxy_score",
         },
     )
+
+    with open_dict(cfg.reward):
+        cfg.reward["reward_kwargs"] = {
+            "model_names": list(ensemble_models),
+            "aggregation": args.ensemble_agg,
+            "uwo_lambda": args.uwo_lambda,
+            "calibrate_scores": bool(args.ensemble_calibration),
+            "allow_single_model": bool(args.allow_single_ensemble),
+            "reward_batch_size": args.reward_batch_size,
+            "reward_max_length": args.reward_max_length,
+            "dtype": "bfloat16" if args.bf16 else "float16" if args.fp16 else "float32",
+        }
+        cfg.reward.reward_manager["source"] = "importlib"
+        cfg.reward.reward_manager["name"] = "LoopEnsembleRewardManager"
+        cfg.reward.reward_manager.module["path"] = os.path.join(SCRIPT_DIR, "reward_ensemble.py")
 
     method_fields: Dict[str, Any] = {
         "ensemble_agg": args.ensemble_agg,
         "num_ensemble": float(len(ensemble_models)),
         "uwo_lambda": args.uwo_lambda,
+        "ensemble_calibration": float(bool(args.ensemble_calibration)),
     }
     with open_dict(cfg.trainer):
         cfg.trainer["baseline_method_fields"] = method_fields

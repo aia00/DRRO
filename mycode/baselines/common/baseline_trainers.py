@@ -21,10 +21,19 @@ class EnsembleBaselineTrainer(BaselineRayPPOTrainer):
         row: Dict[str, float] = {}
         ensemble_mean = proxy_extra_accum.get("ensemble_mean", [])
         ensemble_var = proxy_extra_accum.get("ensemble_var", [])
+        ensemble_raw_mean = proxy_extra_accum.get("ensemble_raw_mean", [])
+        ensemble_raw_var = proxy_extra_accum.get("ensemble_raw_var", [])
+        ensemble_calibrated = proxy_extra_accum.get("ensemble_calibrated", [])
         if ensemble_mean:
             row["ensemble_mean"] = float(np.mean(ensemble_mean))
         if ensemble_var:
             row["ensemble_var"] = float(np.mean(ensemble_var))
+        if ensemble_raw_mean:
+            row["ensemble_raw_mean"] = float(np.mean(ensemble_raw_mean))
+        if ensemble_raw_var:
+            row["ensemble_raw_var"] = float(np.mean(ensemble_raw_var))
+        if ensemble_calibrated:
+            row["ensemble_calibrated"] = float(np.mean(ensemble_calibrated))
         return row
 
 
